@@ -1,0 +1,9 @@
+{
+    "name": "whiteboard-distributed",
+    "version": "1.0.0",
+    "description": "Sistema distribuído de quadro branco colaborativo em tempo real",
+    "scripts": {
+      "start": "echo 'Use docker-compose up para iniciar os serviços'"
+    }
+  }
+  
