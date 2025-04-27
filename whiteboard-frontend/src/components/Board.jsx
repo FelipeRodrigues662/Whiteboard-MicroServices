@@ -1,78 +1,83 @@
 import { useParams } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import socketService from '../services/socketService';
 
 function Board() {
   const { sessionId } = useParams();
-  const [messages, setMessages] = useState([]);
   const canvasRef = useRef(null);
   const isDrawing = useRef(false);
   const lastPosition = useRef({ x: 0, y: 0 });
   const token = localStorage.getItem('token');
 
-  console.log(token);
-
-  // Conectar ao WebSocket e ouvir as mensagens
-  useEffect(() => {
-    socketService.connect({
-      url: `ws://localhost:3000/?token=${token}`,  // Enviando o token na URL
-      sessionId,
-      onMessage: (data) => {
-        console.log('Recebido:', data);
-        setMessages((prev) => [...prev, data]);
-      },
-    });
-
-    // Desconectar ao desmontar o componente
-    return () => socketService.disconnect();
-  }, [sessionId]);
-
-  // Iniciar o desenho no mouse down
-  const handleMouseDown = (e) => {
-    isDrawing.current = true;
-    // Atualiza a posição inicial para o clique no canvas
-    lastPosition.current = { x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY };
-  };
-
-  // Desenhar ao mover o mouse
-  const handleMouseMove = (e) => {
-    if (isDrawing.current) {
-      const ctx = canvasRef.current.getContext('2d');
-      ctx.beginPath();
-      ctx.moveTo(lastPosition.current.x, lastPosition.current.y);
-      ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);  // Usar offsetX e offsetY para canvas
-      ctx.stroke();
-      lastPosition.current = { x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY };
-
-      // Enviar dados para o servidor
-      const drawingData = {
-        x1: lastPosition.current.x,
-        y1: lastPosition.current.y,
-        x2: e.nativeEvent.offsetX,
-        y2: e.nativeEvent.offsetY,
-      };
-      socketService.sendMessage(drawingData);
-    }
-  };
-
-  // Parar de desenhar no mouse up
-  const handleMouseUp = () => {
-    isDrawing.current = false;
-  };
-
-  // Função para desenhar a linha quando recebida
+  // Função para desenhar a linha no canvas
   const drawLine = (lineData) => {
     const ctx = canvasRef.current.getContext('2d');
+    if (!ctx) return;
     ctx.beginPath();
     ctx.moveTo(lineData.x1, lineData.y1);
     ctx.lineTo(lineData.x2, lineData.y2);
     ctx.stroke();
   };
 
-  // Renderizando as mensagens (linhas desenhadas) no quadro
+  // Conectar ao WebSocket e ouvir as mensagens
   useEffect(() => {
-    messages.forEach(drawLine);
-  }, [messages]);
+    socketService.connect({
+      url: `ws://localhost:3000/?token=${token}`,
+      sessionId,
+      onMessage: (data) => {
+        console.log('Mensagem recebida:', data);
+
+        try {
+          const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+
+          if (parsed.type === 'draw') {
+            console.log('Desenhando linha:', parsed.payload); // Verificando se os dados são recebidos corretamente
+            drawLine(parsed.payload); // Desenhar diretamente no canvas quando a mensagem for do tipo "draw"
+          } else if (parsed.type === 'error') {
+            console.error('Erro recebido do servidor:', parsed.payload.message);
+          }
+        } catch (e) {
+          console.error('Erro ao processar mensagem recebida:', e.message);
+        }
+      },
+    });
+
+    return () => socketService.disconnect();
+  }, [sessionId, token]);
+
+  const handleMouseDown = (e) => {
+    isDrawing.current = true;
+    lastPosition.current = { x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY };
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDrawing.current) {
+      const ctx = canvasRef.current.getContext('2d');
+      if (!ctx) return;
+      const currentPosition = { x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY };
+
+      ctx.beginPath();
+      ctx.moveTo(lastPosition.current.x, lastPosition.current.y);
+      ctx.lineTo(currentPosition.x, currentPosition.y);
+      ctx.stroke();
+
+      const drawingData = {
+        x1: lastPosition.current.x,
+        y1: lastPosition.current.y,
+        x2: currentPosition.x,
+        y2: currentPosition.y,
+      };
+
+      // Enviar dados para o servidor para que outros usuários vejam o desenho
+      socketService.sendMessage({ sessionId, data: drawingData });
+
+      lastPosition.current = currentPosition;
+    }
+  };
+
+  const handleMouseUp = () => {
+    isDrawing.current = false;
+  };
 
   return (
     <div>

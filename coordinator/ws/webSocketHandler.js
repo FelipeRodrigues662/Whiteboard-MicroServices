@@ -8,8 +8,8 @@ const handleWebSocket = (server, channel) => {
 
   wss.on('connection', (ws, req) => {
     // Obtém o token da URL da requisição
-    const urlParams = new URLSearchParams(req.url.slice(1)); 
-    const token = urlParams.get('token');  
+    const urlParams = new URLSearchParams(req.url.slice(1));
+    const token = urlParams.get('token');
 
     if (!token) {
       ws.close(4000, 'Token não fornecido');
@@ -17,8 +17,7 @@ const handleWebSocket = (server, channel) => {
     }
 
     try {
-      // Verifica o token
-      verifyJWT(token);
+      // verifyJWT(token);
 
       let sessionId = null;
 
@@ -34,15 +33,18 @@ const handleWebSocket = (server, channel) => {
             clients.set(sessionId, []);
           }
 
-          // Adiciona o WebSocket à lista de clientes da sessão
-          clients.get(sessionId).push(ws);
+          // Adiciona o WebSocket à lista de clientes da sessão, se ainda não estiver lá
+          if (!clients.get(sessionId).includes(ws)) {
+            clients.get(sessionId).push(ws);
+          }
 
           // Envia o evento de desenho para a fila RabbitMQ
           const event = { sessionId, data };
+          console.log(`Enviando evento para a fila RabbitMQ para a sessão ${sessionId}: ${JSON.stringify(event)}`);
           channel.sendToQueue('whiteboard_events', Buffer.from(JSON.stringify(event)), { persistent: true });
         } catch (e) {
           console.error('Erro ao processar mensagem WebSocket:', e.message);
-          ws.send(JSON.stringify({ error: e.message }));
+          ws.send(JSON.stringify({ type: 'error', payload: { message: e.message } }));
         }
       });
 
@@ -76,7 +78,11 @@ const handleWebSocket = (server, channel) => {
         clients.get(sessionId).forEach(ws => {
           if (ws.readyState === WebSocket.OPEN) {
             try {
-              ws.send(JSON.stringify(data));  // Envia os dados de desenho (linha)
+              console.log(`Enviando para o WebSocket da sessão ${sessionId} com dados: ${JSON.stringify(data)}`);
+              ws.send(JSON.stringify({
+                type: 'draw',
+                payload: data
+              }));
             } catch (e) {
               console.error('Erro ao enviar mensagem para o WebSocket:', e.message);
             }
