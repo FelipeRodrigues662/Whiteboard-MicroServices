@@ -1,10 +1,11 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User.js');
+require('dotenv').config();
 
 exports.register = async (req, res) => {
     try {
-        const { name, email, password, cpf } = req.body;
+        const { name, email, password } = req.body;
         
         const existingUser = await User.findOne({ where: { email } });
         if (existingUser) {
@@ -16,12 +17,11 @@ exports.register = async (req, res) => {
             name,
             email,
             password: hashedPassword,
-            cpf
         });
 
         const token = jwt.sign(
             { userId: user.id, email: user.email },
-            process.env.JWT_SECRET || 'your-secret-key',
+            process.env.JWT_SECRET,
             { expiresIn: '100h' }
         );
 

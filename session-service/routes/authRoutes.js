@@ -17,7 +17,7 @@ const authController = require('../controllers/authController.js');
  *             required:
  *               - name
  *               - password
- *               - phone
+ *               - email
  *             properties:
  *               name:
  *                 type: string
@@ -35,10 +35,8 @@ const authController = require('../controllers/authController.js');
  *         description: User created successfully
  *       400:
  *         description: Invalid input (e.g., missing fields, invalid email, etc.)
- *       409:
- *         description: Conflict (e.g., email or CPF already exists)
  */
-router.post('/auth/register', authController.register);
+router.post('/api/auth/register', authController.register);
 
 /**
  * @swagger
@@ -63,7 +61,7 @@ router.post('/auth/register', authController.register);
  *       200:
  *         description: Authentication successful
  */
-router.post('/auth/login', authController.login);
+router.post('/api/auth/login', authController.login);
 
 module.exports = router;
 

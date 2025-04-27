@@ -2,11 +2,11 @@ const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
 const sequelize = new Sequelize({
-  host: process.env.MARIADB_HOST,
+  host: process.env.MARIADB_HOST,          
   dialect: 'mariadb',
-  username: process.env.MARIADB_USER,
-  password: process.env.MARIADB_ROOT_PASSWORD,
-  database: process.env.MARIADB_DATABASE,
+  username: 'root',       
+  password: 'admin',
+  database: process.env.MARIADB_DATABASE,    
   logging: false
 });
 

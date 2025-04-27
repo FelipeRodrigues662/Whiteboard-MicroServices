@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
 
 function Register() {
   const [name, setName] = useState('');
@@ -10,21 +9,66 @@ function Register() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+
     try {
-      await api.post('/auth/register', { name, email, password });
-      navigate('/');
+      const response = await fetch('http://localhost:4000/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name, email, password })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erro ao registrar usuário');
+      }
+
+      // Se der tudo certo, redireciona para a tela de login
+      navigate('/login');
     } catch (err) {
       console.error(err);
-      alert('Erro ao registrar usuário');
+      alert(err.message);
     }
   };
 
   return (
     <form onSubmit={handleRegister}>
       <h2>Registrar</h2>
-      <input value={name} onChange={e => setName(e.target.value)} placeholder="Nome" />
-      <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" />
-      <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Senha" />
+
+      <label>
+        Nome
+        <input
+          type="text"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="Nome"
+          required
+        />
+      </label>
+
+      <label>
+        Email
+        <input
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="Email"
+          required
+        />
+      </label>
+
+      <label>
+        Senha
+        <input
+          type="password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          placeholder="Senha"
+          required
+        />
+      </label>
+
       <button type="submit">Registrar</button>
     </form>
   );

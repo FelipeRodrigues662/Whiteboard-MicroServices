@@ -7,7 +7,7 @@ const { handleWebSocket } = require('./ws/webSocketHandler');
 
 const app = express();
 const server = http.createServer(app);
-const PORT = process.env.COORDINATOR_PORT;
+const PORT = 3000;
 
 (async () => {
   try {

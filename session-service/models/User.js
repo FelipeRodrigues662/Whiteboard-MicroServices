@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database.js');
+const sequelize = require('../database/database.js');
 
 const User = sequelize.define('User', {
     id: {
@@ -41,20 +41,6 @@ const User = sequelize.define('User', {
         defaultValue: sequelize.literal('CURRENT_TIMESTAMP'),
         onUpdate: sequelize.literal('CURRENT_TIMESTAMP')
     }
-}, {
-    indexes: [
-        {
-            unique: true,
-            fields: ['email']
-        },
-        {
-            unique: true,
-            fields: ['cpf']
-        },
-        {
-            fields: ['phone']
-        }
-    ]
 });
 
 User.updateLastLogin = async (userId) => {

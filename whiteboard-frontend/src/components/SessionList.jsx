@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import axios from 'axios';
 
 function SessionList() {
   const [sessions, setSessions] = useState([]);
@@ -12,7 +12,7 @@ function SessionList() {
 
   const createSession = async () => {
     try {
-      const res = await api.post('/create-session');
+      const res = await axios.post('http://localhost:4000/create-session');
       navigate('/board/' + res.data.sessionId);
     } catch (err) {
       console.error(err);

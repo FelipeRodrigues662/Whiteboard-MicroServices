@@ -23,8 +23,6 @@ services:
     image: mariadb:latest
     environment:
       - MARIADB_ROOT_PASSWORD=admin
-      - MARIADB_USER=admin
-      - MARIADB_PASSWORD=admin
     volumes:
       - vol1:/var/lib/mysql
     networks:
@@ -55,6 +53,7 @@ services:
     environment:
       - REDIS_HOST=redis
       - RABBITMQ_HOST=rabbitmq
+      - JWT_SECRET=segredo123
     networks:
       - whiteboard-network
 
@@ -66,25 +65,31 @@ services:
     depends_on:
       - rabbitmq
       - redis
+      - mariadb
     environment:
       - REDIS_HOST=redis
       - RABBITMQ_HOST=rabbitmq
+      - MARIADB_HOST=mariadb
+      - MARIADB_USER=root
+      - MARIADB_PASSWORD=admin
+      - MARIADB_DATABASE=whiteboard_app_db
+      - JWT_SECRET=segredo123
     networks:
       - whiteboard-network
 
   # ---------- FRONTEND ----------
-  frontend:
-    build:
-      context: ./whiteboard-frontend
-    ports:
-      - "3001:3000"
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-    depends_on:
-      - coordinator
-      - session-service
-    networks:
-      - whiteboard-network
+  # frontend:
+  #   build:
+  #     context: ./whiteboard-frontend
+  #   ports:
+  #     - "3001:3000"
+  #   environment:
+  #     - CHOKIDAR_USEPOLLING=true
+  #   depends_on:
+  #     - coordinator
+  #     - session-service
+  #   networks:
+  #     - whiteboard-network
 
 # ---------- REDE E VOLUMES ----------
 networks:
