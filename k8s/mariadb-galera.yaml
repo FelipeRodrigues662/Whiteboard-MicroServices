@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mariadb
+spec:
+  serviceName: "mariadb"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mariadb
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      containers:
+      - name: mariadb
+        image: bitnami/mariadb-galera:latest
+        env:
+        - name: MARIADB_ROOT_PASSWORD
+          value: "admin"
+        - name: MARIADB_GALERA_CLUSTER_NAME
+          value: "galera-cluster"
+        - name: MARIADB_GALERA_CLUSTER_ADDRESS
+          value: "gcomm://mariadb-0.mariadb,mariadb-1.mariadb,mariadb-2.mariadb"
+        - name: MARIADB_GALERA_FORCE_SAFETOBOOTSTRAP
+          value: "yes"
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: mariadb-data
+          mountPath: /bitnami/mariadb
+  volumeClaimTemplates:
+  - metadata:
+      name: mariadb-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb
+spec:
+  clusterIP: None
+  selector:
+    app: mariadb
+  ports:
+  - port: 3306

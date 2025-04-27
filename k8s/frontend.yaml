@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whiteboard-frontend
+  labels:
+    app: whiteboard-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: whiteboard-frontend
+  template:
+    metadata:
+      labels:
+        app: whiteboard-frontend
+    spec:
+      containers:
+      - name: whiteboard-frontend
+        image: whiteboard-frontend:latest
+        ports:
+        - containerPort: 80
+        env:
+        - name: REACT_APP_API_URL
+          value: "http://coordinator:3000"  # Substitua pela URL do seu serviço coordinator
+        - name: REACT_APP_SESSION_URL
+          value: "http://session-service:4000"  # Substitua pela URL do seu session-service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: whiteboard-frontend
+spec:
+  type: LoadBalancer
+  selector:
+    app: whiteboard-frontend
+  ports:
+  - port: 80
+    targetPort: 80

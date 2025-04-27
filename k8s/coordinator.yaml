@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coordinator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: coordinator
+  template:
+    metadata:
+      labels:
+        app: coordinator
+    spec:
+      containers:
+      - name: coordinator
+        image: coordinator:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: REDIS_HOST
+          value: "redis"
+        - name: RABBITMQ_HOST
+          value: "rabbitmq"
+        - name: JWT_SECRET
+          value: "segredo123"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coordinator
+spec:
+  type: LoadBalancer
+  selector:
+    app: coordinator
+  ports:
+  - port: 3000
+    targetPort: 3000
