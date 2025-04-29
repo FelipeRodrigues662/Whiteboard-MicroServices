@@ -1,0 +1,123 @@
+/* Container principal */
+.auth-form-container_register {
+  /* max-width: 440px; */
+  width: 440px;
+  margin-top: 40px;
+  padding: 24px;
+  background: rgba(20, 20, 20, 0.8);
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Cabeçalho */
+.auth-form-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.auth-form-title {
+  color: #fff !important;
+  margin-bottom: 8px !important;
+}
+
+.auth-form-subtitle {
+  color: rgba(255, 255, 255, 0.65) !important;
+  display: block;
+}
+
+/* Texto com gradiente */
+.gradient-text {
+  background: linear-gradient(90deg, #9c62ee, #5612b5);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  display: inline-block;
+}
+
+/* Formulário */
+.auth-form {
+  width: 100%;
+}
+
+/* Inputs */
+.auth-input,
+.auth-input-affix-wrapper {
+  background-color: #1a1a1a !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+  padding: 12px 16px !important;
+  border-radius: 8px !important;
+  height: 48px;
+}
+
+.auth-input::placeholder,
+.auth-input-affix-wrapper input::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Ícones */
+.auth-input-prefix {
+  color: rgba(255, 255, 255, 0.5) !important;
+  margin-right: 10px;
+}
+
+/* Botão de submit */
+.auth-submit-button {
+  background: linear-gradient(90deg, #9c62ee, #5612b5) !important;
+  border: none !important;
+  height: 48px !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+  margin-top: 16px !important;
+}
+
+/* Lembrar de mim e esqueci a senha */
+.auth-remember-forgot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.auth-remember-me {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.auth-forgot-password {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.auth-forgot-password:hover {
+  color: #9c62ee !important;
+}
+
+/* Mensagens de erro */
+.ant-form-item-explain-error {
+  color: #ff4d4f !important;
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+/* Efeitos de hover e focus */
+.auth-input:hover,
+.auth-input:focus,
+.auth-input-affix-wrapper:hover,
+.auth-input-affix-wrapper:focus {
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.auth-input:focus,
+.auth-input-affix-wrapper-focused {
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2) !important;
+}
+
+.auth-form .ant-input {
+  background-color: #1a1a1a !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+  padding: 12px 16px;
+}
+
+.auth-form .ant-input::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+}

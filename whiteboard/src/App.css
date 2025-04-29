@@ -1,0 +1,19 @@
+.modern-layout {
+    min-height: 100vh;
+    min-width: 97vw;
+    background-color: #0a0a0a;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .main-content {
+    margin-top: 10px;
+    padding: 40px 24px;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+  }
