@@ -1,0 +1,45 @@
+.modern-header {
+  background: transparent !important;
+  padding: 0 24px;
+  height: 140px;
+  line-height: normal;
+  border-bottom: none !important;
+  align-self: center;
+  text-align: center;
+  /* z-index: 1; */
+}
+
+.welcome-title {
+  color: #fff !important;
+  font-weight: 600 !important;
+  margin-bottom: 8px !important;
+  font-size: 28px !important;
+}
+
+.header-buttons {
+  margin-top: 16px;
+}
+
+.login-button {
+  background: transparent !important;
+  border-color: #5612b5 !important;
+  color: #9c62ee !important;
+  font-weight: 500;
+}
+
+.login-button:hover {
+  background: rgba(86, 18, 181, 0.1) !important;
+  border-color: #7d3dda !important;
+  color: #b07df1 !important;
+}
+
+.signup-button {
+  background: linear-gradient(90deg, #5612b5, #9c62ee) !important;
+  border: none !important;
+  font-weight: 500;
+}
+
+.signup-button:hover {
+  background: linear-gradient(90deg, #4a0f9e, #8a50e0) !important;
+  transform: translateY(-1px);
+}
