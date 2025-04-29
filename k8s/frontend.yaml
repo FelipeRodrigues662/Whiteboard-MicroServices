@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: whiteboard-frontend
-        image: whiteboard-frontend:latest
+        image: feliperodrigues662/frontend:latest
         ports:
         - containerPort: 80
         env:
@@ -36,3 +36,4 @@ spec:
   ports:
   - port: 80
     targetPort: 80
+
