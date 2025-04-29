@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: session-service
-        image: session-service:latest
+        image: feliperodrigues662/session-service:latest
         ports:
         - containerPort: 4000
         env:
