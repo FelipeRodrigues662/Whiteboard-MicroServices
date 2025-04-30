@@ -7,6 +7,3 @@ docker push feliperodrigues662/coordinator:latest
 
 
 
-
-
-
