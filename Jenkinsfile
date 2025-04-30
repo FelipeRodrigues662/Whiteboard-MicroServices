@@ -2,30 +2,30 @@ pipeline {
     agent any
 
     environment {
-        DEPLOYMENT_ENVIRONMENT = 'development'  
+        DEPLOYMENT_ENVIRONMENT = 'development'
     }
 
     options {
         skipDefaultCheckout(true)
     }
 
-    triggers {
-        githubPush() 
-    }
-
     stages {
-        stage('Check Branch') {
+        stage('Check PRD Approval') {
             when {
-                expression { return env.BRANCH_NAME == 'main' } 
+                expression { 
+                    return env.BRANCH_NAME == 'main' && (env.CHANGE_ID != null && env.CHANGE_STATUS == 'approved')
+                }
             }
             steps {
-                echo "Merge detectado em branch ${env.BRANCH_NAME}, iniciando pipeline..."
+                echo "Merge aprovado na branch 'main'. PRD aprovada e pipeline iniciada."
             }
         }
 
         stage('Build & Deploy') {
             when {
-                expression { return env.BRANCH_NAME == 'main' }
+                expression { 
+                    return env.BRANCH_NAME == 'main' && (env.CHANGE_ID != null && env.CHANGE_STATUS == 'approved')
+                }
             }
             steps {
                 script {
