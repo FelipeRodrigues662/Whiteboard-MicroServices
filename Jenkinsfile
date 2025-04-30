@@ -2,25 +2,42 @@ pipeline {
     agent any
 
     environment {
-        // Exemplo de ambiente que o Jira espera
-        DEPLOYMENT_ENVIRONMENT = 'development'  // ou 'production', 'staging', etc
+        DEPLOYMENT_ENVIRONMENT = 'development'  
+    }
+
+    options {
+        skipDefaultCheckout(true)
+    }
+
+    triggers {
+        githubPush() 
     }
 
     stages {
-        stage('build') {
+        stage('Check Branch') {
+            when {
+                expression { return env.BRANCH_NAME == 'main' } 
+            }
+            steps {
+                echo "Merge detectado em branch ${env.BRANCH_NAME}, iniciando pipeline..."
+            }
+        }
+
+        stage('Build & Deploy') {
+            when {
+                expression { return env.BRANCH_NAME == 'main' }
+            }
             steps {
                 script {
                     echo "Building branch ${env.BRANCH_NAME}"
 
-                    // Envia informações de build para o Jira
                     jiraSendBuildInfo site: 'JiraSiteName', buildNumber: env.BUILD_NUMBER, branch: env.BRANCH_NAME
 
-                    // Envia informações de deployment para o Jira
                     jiraSendDeploymentInfo site: 'JiraSiteName',
                                             environmentId: env.DEPLOYMENT_ENVIRONMENT,
                                             environmentName: env.DEPLOYMENT_ENVIRONMENT,
-                                            environmentType: 'development', // ou 'production', 'staging'
-                                            state: 'successful' // ou 'failed'
+                                            environmentType: 'development',
+                                            state: 'successful'
                 }
             }
         }
