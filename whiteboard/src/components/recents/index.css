@@ -1,5 +1,5 @@
 .recents-container {
-    padding: 24px 0;
+    padding: 24px;
     width: 100%;
     position: relative;
     z-index: 1;
@@ -13,10 +13,22 @@
     margin-bottom: 32px !important;
     font-size: 28px !important;
     text-align: center;
+    width: 100%;
 }
 
 h3:where(.css-dev-only-do-not-override-1v5z42l).ant-typography, div:where(.css-dev-only-do-not-override-1v5z42l).ant-typography-h3, div:where(.css-dev-only-do-not-override-1v5z42l).ant-typography-h3>textarea, :where(.css-dev-only-do-not-override-1v5z42l).ant-typography h3 {
     color: #fff;
+}
+
+.boards-grid {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.boards-grid .ant-list {
+    width: 100%;
+    max-width: 1400px;
 }
 
 .board-card {
@@ -26,7 +38,7 @@ h3:where(.css-dev-only-do-not-override-1v5z42l).ant-typography, div:where(.css-d
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     transition: all 0.3s ease;
     height: 100%;
-    width: 20vw;
+    width: 300px !important;
 }
 
 .board-card:hover {
@@ -65,7 +77,7 @@ h3:where(.css-dev-only-do-not-override-1v5z42l).ant-typography, div:where(.css-d
 }
 
 .board-thumbnail {
-    height: 120px;
+    height: 180px;
     background: linear-gradient(135deg, rgba(30, 30, 30, 0.8), rgba(45, 22, 62, 0.8));
     display: flex;
     align-items: center;
@@ -128,9 +140,25 @@ h3:where(.css-dev-only-do-not-override-1v5z42l).ant-typography, div:where(.css-d
 }
 
 /* Responsividade */
+@media (max-width: 1400px) {
+    .boards-grid .ant-list {
+        max-width: 1000px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .boards-grid .ant-list {
+        max-width: 800px;
+    }
+    
+    .board-thumbnail {
+        height: 160px;
+    }
+}
+
 @media (max-width: 992px) {
-    .recents-title {
-        font-size: 24px !important;
+    .boards-grid .ant-list {
+        max-width: 600px;
     }
     
     .board-thumbnail {
@@ -140,12 +168,25 @@ h3:where(.css-dev-only-do-not-override-1v5z42l).ant-typography, div:where(.css-d
 
 @media (max-width: 768px) {
     .recents-container {
-        padding: 16px 0;
+        padding: 16px;
     }
     
-    .recents-title {
-        font-size: 22px !important;
-        margin-bottom: 24px !important;
+    .boards-grid .ant-list {
+        max-width: 400px;
+    }
+    
+    .board-thumbnail {
+        height: 140px;
+    }
+}
+
+@media (max-width: 576px) {
+    .recents-container {
+        padding: 12px;
+    }
+    
+    .boards-grid .ant-list {
+        max-width: 100%;
     }
     
     .board-thumbnail {

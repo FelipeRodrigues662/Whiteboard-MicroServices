@@ -33,7 +33,7 @@ const Recents = () => {
                 }
 
                 // Adiciona mais alguns exemplos (remover quando tiver dados reais)
-                for (let i = 1; i <= 3; i++) {
+                for (let i = 1; i <= 0; i++) {
                     savedBoards.push({
                         id: `example-${i}`,
                         name: `Projeto ${i}`,
@@ -123,48 +123,58 @@ const Recents = () => {
             {contextHolder}
             <Title level={3} className="recents-title gradient-text-2">Seus Boards Recentes</Title>
 
-            <List
-                loading={loading}
-                grid={{ gutter: 24, xs: 1, sm: 2, md: 2, lg: 3, xl: 4 }}
-                dataSource={boards}
-                renderItem={(board) => (
-                    <List.Item>
-                        <Card
-                            hoverable
-                            className="board-card"
-                            cover={
-                                <div className="board-thumbnail">
-                                    {/* <FileImageOutlined className="thumbnail-icon" /> */}
-                                </div>
-                            }
-                            actions={[
-                                <Button
-                                    type="text"
-                                    icon={<EditOutlined />}
-                                    onClick={() => handleEdit(board)}
-                                    className="card-action-button"
-                                />,
-                                <Button
-                                    type="text"
-                                    icon={<DeleteOutlined />}
-                                    onClick={() => handleDelete(board.id)}
-                                    className="card-action-button"
-                                    danger
-                                />
-                            ]}
-                        >
-                            <Meta
-                                title={<Text ellipsis className="card-title">{board.name}</Text>}
-                                description={
-                                    <Text type="secondary" className="card-description">
-                                        Editado: {formatDate(board.lastModified)}
-                                    </Text>
+            <div className="boards-grid">
+                <List
+                    loading={loading}
+                    grid={{
+                        gutter: 24,
+                        xs: 1,
+                        sm: 1,
+                        md: 2,
+                        lg: 3,
+                        xl: 4,
+                        xxl: 4
+                    }}
+                    dataSource={boards}
+                    renderItem={(board) => (
+                        <List.Item>
+                            <Card
+                                hoverable
+                                className="board-card"
+                                cover={
+                                    <div className="board-thumbnail">
+                                        {/* <FileImageOutlined className="thumbnail-icon" /> */}
+                                    </div>
                                 }
-                            />
-                        </Card>
-                    </List.Item>
-                )}
-            />
+                                actions={[
+                                    <Button
+                                        type="text"
+                                        icon={<EditOutlined />}
+                                        onClick={() => handleEdit(board)}
+                                        className="card-action-button"
+                                    />,
+                                    <Button
+                                        type="text"
+                                        icon={<DeleteOutlined />}
+                                        onClick={() => handleDelete(board.id)}
+                                        className="card-action-button"
+                                        danger
+                                    />
+                                ]}
+                            >
+                                <Meta
+                                    title={<Text ellipsis className="card-title">{board.name}</Text>}
+                                    description={
+                                        <Text type="secondary" className="card-description">
+                                            Editado: {formatDate(board.lastModified)}
+                                        </Text>
+                                    }
+                                />
+                            </Card>
+                        </List.Item>
+                    )}
+                />
+            </div>
 
             {/* Modal de edição */}
             <Modal

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Form, Input, Button, Typography } from 'antd';
-import { UserOutlined, RocketFilled } from '@ant-design/icons';
+import { UserOutlined, LoginOutlined} from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import './index_2.css'; // Importe o CSS aqui
 
@@ -65,14 +65,15 @@ const JoinRoomForm = () => {
                         htmlType="submit"
                         size="large"
                         onClick={() => navigate('/whiteboard')}
-                        icon={<RocketFilled />}
+                        icon={<LoginOutlined />}
                         block
                         style={{
                             background: 'linear-gradient(90deg, #5612b5, #9c62ee)',
                             border: 'none',
                             height: 48,
                             fontWeight: 500,
-                            marginTop: 16
+                            marginTop: 16,
+                            flexDirection: 'row-reverse',
                         }}
                     >
                         Entrar na Sala

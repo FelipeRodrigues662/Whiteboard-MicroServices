@@ -1,6 +1,6 @@
 import React from 'react';
 import { Form, Input, Button, Typography, message } from 'antd';
-import { UserOutlined, RocketFilled, CopyOutlined } from '@ant-design/icons';
+import { UserOutlined, RocketFilled, RightCircleOutlined, CopyOutlined } from '@ant-design/icons';
 import './index_1.css';
 
 const { Title, Text } = Typography;
@@ -116,14 +116,15 @@ const CreateRoomForm = () => {
                         type="primary"
                         htmlType="submit"
                         size="large"
-                        icon={<RocketFilled />}
+                        icon={<RightCircleOutlined />}
                         block
                         style={{
                             background: 'linear-gradient(90deg, #9c62ee, #5612b5)',
                             border: 'none',
                             height: 48,
                             fontWeight: 500,
-                            marginTop: 16
+                            marginTop: 16,
+                            flexDirection: 'row-reverse',
                         }}
                     >
                         Criar nova sala
