@@ -40,7 +40,7 @@ const JoinRoomForm = () => {
             >
                 <Form.Item
                     name="username"
-                    rules={[{ required: true, message: 'Por favor insira seu nome!' }]}
+                    rules={[{ required: true, message: 'Por favor, insira seu nome!' }]}
                 >
                     <Input
                         prefix={<UserOutlined />}
@@ -51,7 +51,7 @@ const JoinRoomForm = () => {
 
                 <Form.Item
                     name="roomCode"
-                    rules={[{ required: true, message: 'Por favor insira o código da sala!' }]}
+                    rules={[{ required: true, message: 'Por favor, insira o código da sala!' }]}
                 >
                     <Input
                         placeholder="Digite o código da sala"
