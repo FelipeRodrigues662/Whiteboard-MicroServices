@@ -23,8 +23,9 @@ import {
     BorderOutlined,
     ArrowLeftOutlined
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { fabric } from 'fabric';
+import socketService from '../../services/socketService';
 import './index.css';
 
 message.config({
@@ -40,14 +41,18 @@ const colors = [
 
 const Whiteboard = () => {
     const navigate = useNavigate();
+    const { sessionId } = useParams();
     const [color, setColor] = useState('#000000');
     const [brushWidth, setBrushWidth] = useState(5);
     const [mode, setMode] = useState('pen');
     const [showSidebar, setShowSidebar] = useState(false);
     const [messageApi, contextHolder] = message.useMessage();
     const canvasRef = useRef(null);
+    const isDrawing = useRef(false);
+    const lastPosition = useRef({ x: 0, y: 0 });
     const [boardName, setBoardName] = useState(localStorage.getItem('whiteboardName') || 'Meu Board');
     const [isEditingName, setIsEditingName] = useState(false);
+    const token = localStorage.getItem('token');
 
     const [connectedUsers] = useState([
         { id: 1, name: 'João Silva', avatar: 'J' },
@@ -102,12 +107,101 @@ const Whiteboard = () => {
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
 
+        // Conecta ao WebSocket
+        socketService.connect({
+            url: `ws://f5dd-2804-4a24-61ac-ba00-a936-245c-28a7-7121.ngrok-free.app/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjcsImVtYWlsIjoiYW50aG9ueUB0ZXN0ZS5jb20iLCJpYXQiOjE3NDY5MTc4ODQsImV4cCI6MTc0NzI3Nzg4NH0.2yk9mkTQ5cggGkOmL2SxscDAsjD1_LQsX9zPCm7xK7Q`,
+            sessionId,
+            onMessage: (data) => {
+                try {
+                    const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+
+                    if (parsed.type === 'draw') {
+                        const { x1, y1, x2, y2, color: lineColor, width } = parsed.payload;
+                        const ctx = canvas.getContext('2d');
+                        ctx.beginPath();
+                        ctx.moveTo(x1, y1);
+                        ctx.lineTo(x2, y2);
+                        ctx.strokeStyle = lineColor || color;
+                        ctx.lineWidth = width || brushWidth;
+                        ctx.stroke();
+                    } else if (parsed.type === 'error') {
+                        message.error(parsed.payload.message);
+                    }
+                } catch (e) {
+                    console.error('Erro ao processar mensagem recebida:', e.message);
+                }
+            },
+        });
+
         return () => {
             window.removeEventListener('resize', resizeCanvas);
             canvas.dispose();
+            socketService.disconnect();
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [sessionId, token]);
+
+    // Modifica o evento de desenho para enviar dados via WebSocket
+    useEffect(() => {
+        if (canvasRef.current) {
+            const handleMouseDown = (options) => {
+                isDrawing.current = true;
+                lastPosition.current = { 
+                    x: options.e.offsetX, 
+                    y: options.e.offsetY 
+                };
+            };
+
+            const handleMouseMove = (options) => {
+                if (isDrawing.current) {
+                    const ctx = canvasRef.current.getContext('2d');
+                    if (!ctx) return;
+                    const currentPosition = { 
+                        x: options.e.offsetX, 
+                        y: options.e.offsetY 
+                    };
+
+                    ctx.beginPath();
+                    ctx.moveTo(lastPosition.current.x, lastPosition.current.y);
+                    ctx.lineTo(currentPosition.x, currentPosition.y);
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = brushWidth;
+                    ctx.stroke();
+
+                    const drawingData = {
+                        x1: lastPosition.current.x,
+                        y1: lastPosition.current.y,
+                        x2: currentPosition.x,
+                        y2: currentPosition.y,
+                        color: color,
+                        width: brushWidth
+                    };
+
+                    socketService.sendMessage({
+                        sessionId,
+                        data: drawingData
+                    });
+
+                    lastPosition.current = currentPosition;
+                }
+            };
+
+            const handleMouseUp = () => {
+                isDrawing.current = false;
+            };
+
+            canvasRef.current.on('mouse:down', handleMouseDown);
+            canvasRef.current.on('mouse:move', handleMouseMove);
+            canvasRef.current.on('mouse:up', handleMouseUp);
+            canvasRef.current.on('mouse:out', handleMouseUp);
+
+            return () => {
+                canvasRef.current.off('mouse:down', handleMouseDown);
+                canvasRef.current.off('mouse:move', handleMouseMove);
+                canvasRef.current.off('mouse:up', handleMouseUp);
+                canvasRef.current.off('mouse:out', handleMouseUp);
+            };
+        }
+    }, [sessionId, color, brushWidth]);
 
     // Atualiza o pincel quando a cor ou largura muda
     useEffect(() => {
@@ -395,7 +489,12 @@ const Whiteboard = () => {
                 </div>
 
                 <div className="board-container">
-                    <canvas id="canvas" />
+                    <canvas 
+                        id="canvas"
+                        width="800"
+                        height="600"
+                        style={{ border: '1px solid black' }}
+                    />
                 </div>
 
                 {/* Sidebar flutuante */}

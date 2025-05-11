@@ -14,7 +14,8 @@ const App = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/room" element={<Room />} />
-        <Route path="/whiteboard" element={<Whiteboard />} />
+        <Route path="/whiteboard/:sessionId" element={<Whiteboard />} />
+
       </Routes>
     </Router>
   );

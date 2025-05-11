@@ -1,18 +1,40 @@
-import React from 'react';
+import { useState } from 'react';
 import { Form, Input, Button, Typography, Checkbox } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import './index_login.css';
 
 const { Title, Text } = Typography;
 
 const LoginForm = () => {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState(null);  // Estado para erros
     const [form] = Form.useForm();
     const navigate = useNavigate();
 
-    const onFinish = (values) => {
-        console.log('Dados de login:', values);
-    };
+    const handleLogin = async (values) => {
+        console.log(values);
+    
+        if (!email || !password) {
+          setError('Por favor, preencha todos os campos');
+          return;
+        }
+    
+        try {
+            const response = await axios.post('https://d701-2804-4a24-61ac-ba00-a936-245c-28a7-7121.ngrok-free.app/api/auth/login', {
+                email: values.email,
+                password: values.password,
+            });
+            console.log(response.data.token);
+            localStorage.setItem('token', response.data.token);
+            navigate('/room');
+          } catch (err) {
+            console.error(err);
+            setError(err.response?.data?.message || 'Erro ao fazer login');
+          }
+      };
 
     return (
         <div className="auth-form-container">
@@ -28,46 +50,50 @@ const LoginForm = () => {
             <Form
                 form={form}
                 name="login"
-                onFinish={onFinish}
+                onFinish={handleLogin}
                 layout="vertical"
                 className="auth-form"
             >
                 <Form.Item
-                    name="username"
-                    rules={[{ required: true, message: 'Por favor insira seu e-mail ou nome de usuário!' }]}
+                    name="email"
+                    rules={[{ required: true, message: 'Por favor, insira seu e-mail@' }]}
                 >
                     <Input
                         prefix={<MailOutlined />}
                         placeholder="E-mail"
                         size="large"
                         className="auth-input"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                     />
                 </Form.Item>
 
                 <Form.Item
                     name="password"
-                    rules={[{ required: true, message: 'Por favor insira sua senha!' }]}
+                    rules={[{ required: true, message: 'Por favor, insira sua senha!' }]}
                 >
                     <Input.Password
                         prefix={<LockOutlined />}
                         placeholder="Senha"
                         size="large"
                         className="auth-input"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
                     />
                 </Form.Item>
 
                 <Form.Item>
                     <div className="auth-remember-forgot">
-                        <Form.Item name="remember" valuePropName="checked" noStyle>
+                        {/* <Form.Item name="remember" valuePropName="checked" noStyle>
                             <Checkbox className="auth-remember-me">Lembrar de mim</Checkbox>
-                        </Form.Item>
+                        </Form.Item> */}
 
                         <a className="auth-forgot-password" onClick={() => navigate('/register')}>
                             Criar uma nova conta
                         </a>
                     </div>
                 </Form.Item>
-
+                {error && <div style={{ color: 'red' }}>{error}</div>}
                 <Form.Item>
                     <Button
                         type="primary"
@@ -75,7 +101,7 @@ const LoginForm = () => {
                         size="large"
                         block
                         className="auth-submit-button"
-                        onClick={() => navigate('/room')}
+                        // onClick={() => navigate('/room')}
                     >
                         Entrar
                     </Button>
