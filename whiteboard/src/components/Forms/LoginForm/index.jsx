@@ -7,12 +7,14 @@ import './index_login.css';
 
 const { Title, Text } = Typography;
 
-const LoginForm = () => {
+const LoginForm = ({ messageApi }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState(null);  // Estado para erros
     const [form] = Form.useForm();
     const navigate = useNavigate();
+    const urlEndpoint = import.meta.env.VITE_URL_ENDPOINTS;
+    
 
     const handleLogin = async (values) => {
         console.log(values);
@@ -23,13 +25,19 @@ const LoginForm = () => {
         }
     
         try {
-            const response = await axios.post('https://d701-2804-4a24-61ac-ba00-a936-245c-28a7-7121.ngrok-free.app/api/auth/login', {
+            const response = await axios.post(`${urlEndpoint}/api/auth/login`, {
                 email: values.email,
                 password: values.password,
             });
             console.log(response.data.token);
-            localStorage.setItem('token', response.data.token);
-            navigate('/room');
+            sessionStorage.setItem('token', response.data.token);
+            messageApi.open({
+                type: 'success',
+                content: 'Seja bem-vindo(a)!',
+            });
+            setTimeout(() => {
+                navigate('/room');
+            }, 1500);
           } catch (err) {
             console.error(err);
             setError(err.response?.data?.message || 'Erro ao fazer login');
@@ -101,7 +109,6 @@ const LoginForm = () => {
                         size="large"
                         block
                         className="auth-submit-button"
-                        // onClick={() => navigate('/room')}
                     >
                         Entrar
                     </Button>

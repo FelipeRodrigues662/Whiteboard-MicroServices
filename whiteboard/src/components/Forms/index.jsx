@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layout, Space, Card } from 'antd';
+import { Layout, Space, Card, Divider } from 'antd';
 import './index_forms.css';
 import JoinRoomForm from './JoinRoomForm';
 import CreateRoomForm from './CreateRoomForm';
@@ -15,6 +15,16 @@ export default function Forms() {
                     <Card className="modern-card_2">
                         <CreateRoomForm />
                     </Card>
+                    <Divider 
+                        style={{ 
+                            borderColor: 'rgba(255, 255, 255, 0.2)', 
+                            color: 'rgba(255, 255, 255, 0.65)',
+                            fontSize: '16px',
+                            width: '400px'
+                        }}
+                    >
+                        OU
+                    </Divider>
                     <Card className="modern-card_2">
                         <JoinRoomForm />
                     </Card>

@@ -21,7 +21,8 @@ import {
     UserOutlined,
     LineOutlined,
     BorderOutlined,
-    ArrowLeftOutlined
+    ArrowLeftOutlined,
+    ShareAltOutlined
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fabric } from 'fabric';
@@ -52,7 +53,8 @@ const Whiteboard = () => {
     const lastPosition = useRef({ x: 0, y: 0 });
     const [boardName, setBoardName] = useState(localStorage.getItem('whiteboardName') || 'Meu Board');
     const [isEditingName, setIsEditingName] = useState(false);
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
+    const urlSession = import.meta.env.VITE_URL_SESSION;
 
     const [connectedUsers] = useState([
         { id: 1, name: 'João Silva', avatar: 'J' },
@@ -109,7 +111,7 @@ const Whiteboard = () => {
 
         // Conecta ao WebSocket
         socketService.connect({
-            url: `ws://f5dd-2804-4a24-61ac-ba00-a936-245c-28a7-7121.ngrok-free.app/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjcsImVtYWlsIjoiYW50aG9ueUB0ZXN0ZS5jb20iLCJpYXQiOjE3NDY5MTc4ODQsImV4cCI6MTc0NzI3Nzg4NH0.2yk9mkTQ5cggGkOmL2SxscDAsjD1_LQsX9zPCm7xK7Q`,
+            url: `${urlSession}/?token=${token}`,
             sessionId,
             onMessage: (data) => {
                 try {
@@ -255,6 +257,26 @@ const Whiteboard = () => {
         }
     };
 
+    const handleShare = () => {
+        // Obtém a URL atual
+        const currentUrl = window.location.href;
+        
+        // Copia a URL para a área de transferência
+        navigator.clipboard.writeText(currentUrl)
+            .then(() => {
+                messageApi.open({
+                    type: 'success',
+                    content: 'Link copiado com sucesso, compartilhe com seus amigos!',
+                });
+            })
+            .catch(() => {
+                messageApi.open({
+                    type: 'error',
+                    content: 'Erro ao copiar o link',
+                });
+            });
+    };
+
     const handleSave = () => {
         if (canvasRef.current) {
             try {
@@ -388,8 +410,6 @@ const Whiteboard = () => {
                             </Tooltip>
                         </Col>
 
-
-
                         <Col>
                             <Tooltip title="Desfazer">
                                 <Button
@@ -408,6 +428,18 @@ const Whiteboard = () => {
                                     danger
                                     icon={<DeleteOutlined />}
                                     onClick={handleClear}
+                                    className="tool-button"
+                                />
+                            </Tooltip>
+                        </Col>
+
+                        <Col>
+                            <Tooltip title="Compartilhar">
+                                <Button
+                                    type="text"
+                                    danger
+                                    icon={<ShareAltOutlined />}
+                                    onClick={handleShare}
                                     className="tool-button"
                                 />
                             </Tooltip>
@@ -513,6 +545,23 @@ const Whiteboard = () => {
                                 </List.Item>
                             )}
                         />
+                            <Tooltip title="Compartilhar">
+                                <Button
+                                    type="primary"
+                                    icon={<ShareAltOutlined />}
+                                    onClick={handleShare}
+                                    className="share-button"
+                                    style={{
+                                        backgroundColor: '#9c62ee',
+                                        borderColor: '#9c62ee',
+                                        color: '#fff',
+                                        width: '100%',
+                                        marginTop: '20px'
+                                    }}
+                                >
+                                    Compartilhar
+                                </Button>
+                            </Tooltip>
                     </div>
                 </div>
             </div>

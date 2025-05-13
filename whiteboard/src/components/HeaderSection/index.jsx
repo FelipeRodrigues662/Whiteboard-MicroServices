@@ -1,6 +1,6 @@
 import React from 'react';
 import { Layout, Typography, Divider, Button, Space } from 'antd';
-import { LoginOutlined, UserAddOutlined } from '@ant-design/icons';
+import { LogoutOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import './index_header.css';
 import logo from '../../assets/logo.png';
@@ -10,6 +10,20 @@ const { Title } = Typography;
 
 export default function HeaderSection() {
     const navigate = useNavigate();
+    const isLoggedIn = sessionStorage.getItem('token');
+
+    const handleLogout = () => {
+        // Remove o token do sessionStorage
+        sessionStorage.removeItem('token');
+        // Redireciona para a página inicial
+        // messageApi.open({
+        //     type: 'success',
+        //     content: 'Logout efetuado com sucesso!',
+        // });
+        setTimeout(() => {
+            navigate('/');
+        }, 1000);
+    };
 
     return (
         <Header className="modern-header">
@@ -24,29 +38,21 @@ export default function HeaderSection() {
                     <span className="gradient-text-2">WhiteBoard</span> by StateSystems
                 </Title>
 
-                {/* <Space className="header-buttons" style={{ marginBottom: '20px' }}>
-                    <Button
-                        type="primary"
-                        ghost
-                        size="large"
-                        className="login-button"
-                        icon={<LoginOutlined />}
-                        onClick={() => navigate('/login')}
-                    >
-                        Log In
-                    </Button>
-                    <Button
-                        type="primary"
-                        size="large"
-                        className="signup-button"
-                        icon={<UserAddOutlined />}
-                        onClick={() => navigate('/register')}
-                    >
-                        Sign Up
-                    </Button>
-                </Space> */}
+                {isLoggedIn && (
+                    <Space className="header-buttons" style={{ marginBottom: '20px' }}>
+                        <Button
+                            type="primary"
+                            size="large"
+                            className="signup-button"
+                            icon={<LogoutOutlined />}
+                            onClick={handleLogout}
+                        >
+                            Sair
+                        </Button>
+                    </Space>
+                )}
                 <Divider style={{ borderColor: '#f1f1f131' }} />
             </div>
         </Header>
     );
-};
+}
