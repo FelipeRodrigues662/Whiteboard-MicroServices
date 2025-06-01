@@ -81,9 +81,18 @@ const Whiteboard = () => {
         const canvasElement = document.getElementById('canvas');
         const canvas = new fabric.Canvas(canvasElement, {
             isDrawingMode: true,
-            backgroundColor: '#fff'
+            backgroundColor: '#fff',
+            renderOnAddRemove: true,
+            enableRetinaScaling: true
         });
         canvasRef.current = canvas;
+
+        // Configura o pincel para ser mais suave
+        canvas.freeDrawingBrush.color = color;
+        canvas.freeDrawingBrush.width = brushWidth;
+        canvas.freeDrawingBrush.strokeLineCap = 'round';
+        canvas.freeDrawingBrush.strokeLineJoin = 'round';
+        canvas.freeDrawingBrush.strokeMiterLimit = 10;
 
         // Carrega do localStorage se existir
         const savedData = localStorage.getItem('whiteboardData');
@@ -93,10 +102,6 @@ const Whiteboard = () => {
                 message.success('Desenho anterior carregado!');
             });
         }
-
-        // Configura o pincel
-        canvas.freeDrawingBrush.color = color;
-        canvas.freeDrawingBrush.width = brushWidth;
 
         // Ajusta o tamanho do canvas
         const resizeCanvas = () => {
@@ -119,13 +124,53 @@ const Whiteboard = () => {
 
                     if (parsed.type === 'draw') {
                         const { x1, y1, x2, y2, color: lineColor, width } = parsed.payload;
-                        const ctx = canvas.getContext('2d');
-                        ctx.beginPath();
-                        ctx.moveTo(x1, y1);
-                        ctx.lineTo(x2, y2);
-                        ctx.strokeStyle = lineColor || color;
-                        ctx.lineWidth = width || brushWidth;
-                        ctx.stroke();
+                        
+                        // Cria uma nova linha usando fabric.js
+                        const line = new fabric.Line([x1, y1, x2, y2], {
+                            stroke: lineColor || color,
+                            strokeWidth: width || brushWidth,
+                            selectable: false,
+                            evented: false,
+                            strokeLineCap: 'round',
+                            strokeLineJoin: 'round'
+                        });
+
+                        canvas.add(line);
+                        canvas.renderAll();
+                    } else if (parsed.type === 'shape') {
+                        const { shapeType, left, top, width, height, color: shapeColor, strokeWidth } = parsed.payload;
+                        let shape;
+
+                        if (shapeType === 'line') {
+                            shape = new fabric.Line([left, top, left + width, top], {
+                                stroke: shapeColor,
+                                strokeWidth: strokeWidth,
+                                selectable: true,
+                                strokeLineCap: 'round',
+                                strokeLineJoin: 'round'
+                            });
+                        } else if (shapeType === 'rect') {
+                            shape = new fabric.Rect({
+                                left: left,
+                                top: top,
+                                width: width,
+                                height: height,
+                                fill: 'transparent',
+                                stroke: shapeColor,
+                                strokeWidth: strokeWidth,
+                                selectable: true
+                            });
+                        }
+
+                        if (shape) {
+                            canvas.add(shape);
+                            canvas.setActiveObject(shape);
+                            canvas.renderAll();
+                        }
+                    } else if (parsed.type === 'clear') {
+                        canvas.clear();
+                        canvas.backgroundColor = '#fff';
+                        canvas.renderAll();
                     } else if (parsed.type === 'error') {
                         message.error(parsed.payload.message);
                     }
@@ -155,19 +200,26 @@ const Whiteboard = () => {
 
             const handleMouseMove = (options) => {
                 if (isDrawing.current) {
-                    const ctx = canvasRef.current.getContext('2d');
-                    if (!ctx) return;
                     const currentPosition = { 
                         x: options.e.offsetX, 
                         y: options.e.offsetY 
                     };
 
-                    ctx.beginPath();
-                    ctx.moveTo(lastPosition.current.x, lastPosition.current.y);
-                    ctx.lineTo(currentPosition.x, currentPosition.y);
-                    ctx.strokeStyle = color;
-                    ctx.lineWidth = brushWidth;
-                    ctx.stroke();
+                    // Cria uma linha temporária
+                    const line = new fabric.Line([
+                        lastPosition.current.x,
+                        lastPosition.current.y,
+                        currentPosition.x,
+                        currentPosition.y
+                    ], {
+                        stroke: color,
+                        strokeWidth: brushWidth,
+                        selectable: false,
+                        evented: false
+                    });
+
+                    canvasRef.current.add(line);
+                    canvasRef.current.renderAll();
 
                     const drawingData = {
                         x1: lastPosition.current.x,
@@ -222,25 +274,18 @@ const Whiteboard = () => {
     }, [mode]);
 
     const handleClear = () => {
-        // Alert.confirm({
-        //     title: 'Limpar whiteboard',
-        //     content: 'Tem certeza que deseja apagar tudo?',
-        //     okText: 'Sim',
-        //     cancelText: 'Cancelar',
-        //     onOk: () => {
-        //         if (canvasRef.current) {
-
-        //         }
-        //     },
-        //     onCancel: () => {
-        //         message.info('Operação cancelada');
-        //     }
-        // });
         try {
             // Limpa completamente o canvas
             canvasRef.current.clear();
             canvasRef.current.backgroundColor = '#fff';
             canvasRef.current.renderAll();
+
+            // Envia evento de limpeza para outros usuários
+            socketService.sendMessage({
+                sessionId,
+                data: { type: 'clear' }
+            });
+
             // Remove os dados salvos
             localStorage.removeItem('whiteboardData');
             localStorage.removeItem('drawingCoordinates');
@@ -319,42 +364,63 @@ const Whiteboard = () => {
         }
     };
 
-    const addShape = (type) => {
-        if (!canvasRef.current) return;
+    // const addShape = (type) => {
+    //     if (!canvasRef.current) return;
 
-        setMode('select');
-        let shape;
+    //     setMode('select');
+    //     let shape;
+    //     const left = 100;
+    //     const top = 100;
+    //     const width = 100;
+    //     const height = 100;
 
-        switch (type) {
-            case 'line':
-                shape = new fabric.Line([50, 50, 200, 50], {
-                    stroke: color,
-                    strokeWidth: brushWidth,
-                    selectable: true,
-                    strokeLineCap: 'round',
-                    strokeLineJoin: 'round'
-                });
-                break;
-            case 'rect':
-                shape = new fabric.Rect({
-                    left: 100,
-                    top: 100,
-                    width: 100,
-                    height: 100,
-                    fill: 'transparent',
-                    stroke: color,
-                    strokeWidth: brushWidth,
-                    selectable: true
-                });
-                break;
-            default:
-                return;
-        }
+    //     switch (type) {
+    //         case 'line':
+    //             shape = new fabric.Line([left, top, left + width, top], {
+    //                 stroke: color,
+    //                 strokeWidth: brushWidth,
+    //                 selectable: true,
+    //                 strokeLineCap: 'round',
+    //                 strokeLineJoin: 'round'
+    //             });
+    //             break;
+    //         case 'rect':
+    //             shape = new fabric.Rect({
+    //                 left: left,
+    //                 top: top,
+    //                 width: width,
+    //                 height: height,
+    //                 fill: 'transparent',
+    //                 stroke: color,
+    //                 strokeWidth: brushWidth,
+    //                 selectable: true
+    //             });
+    //             break;
+    //         default:
+    //             return;
+    //     }
 
-        canvasRef.current.add(shape);
-        canvasRef.current.setActiveObject(shape);
-        canvasRef.current.renderAll();
-    };
+    //     canvasRef.current.add(shape);
+    //     canvasRef.current.setActiveObject(shape);
+    //     canvasRef.current.renderAll();
+
+    //     // Envia a forma para outros usuários
+    //     socketService.sendMessage({
+    //         sessionId,
+    //         data: {
+    //             type: 'shape',
+    //             payload: {
+    //                 shapeType: type,
+    //                 left: left,
+    //                 top: top,
+    //                 width: width,
+    //                 height: height,
+    //                 color: color,
+    //                 strokeWidth: brushWidth
+    //             }
+    //         }
+    //     });
+    // };
 
     return (
         <div className="app-container">
@@ -469,7 +535,7 @@ const Whiteboard = () => {
                             </Tooltip>
                         </Col>
 
-                        <Col>
+                        {/* <Col>
                             <Tooltip title="Linha">
                                 <Button
                                     type="text"
@@ -478,9 +544,9 @@ const Whiteboard = () => {
                                     className="tool-button"
                                 />
                             </Tooltip>
-                        </Col>
+                        </Col> */}
 
-                        <Col>
+                        {/* <Col>
                             <Tooltip title="Retângulo">
                                 <Button
                                     type="text"
@@ -489,7 +555,7 @@ const Whiteboard = () => {
                                     className="tool-button"
                                 />
                             </Tooltip>
-                        </Col>
+                        </Col> */}
 
                         <Col>
                             <Divider type="vertical" className="tool-divider" />
