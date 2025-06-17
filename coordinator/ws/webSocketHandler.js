@@ -10,8 +10,8 @@ const handleWebSocket = (server, channel) => {
 
   wss.on('connection', (ws, req) => {
     // Extrair token da URL
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    const token = url.searchParams.get('token');
+    const urlParams = new URLSearchParams(req.url.slice(1));
+    const token = urlParams.get('token');
 
     if (!token) {
       ws.close(4000, 'Token não fornecido');
