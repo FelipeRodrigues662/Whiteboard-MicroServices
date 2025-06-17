@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const redis = require('../database/redisClient');
 const Session = require('../models/Session.js');
+const UserSession = require('../models/UserSession.js');  // Certifique-se que o modelo UserSession existe
 
 exports.getSession = async (req, res) => {
   try {
@@ -8,6 +9,7 @@ exports.getSession = async (req, res) => {
     if (!data) return res.status(404).json({ error: 'Sessão não encontrada' });
     res.json(JSON.parse(data));
   } catch (error) {
+    console.error('Erro ao recuperar a sessão:', error);
     res.status(500).json({ error: 'Erro ao recuperar a sessão' });
   }
 };
@@ -15,23 +17,25 @@ exports.getSession = async (req, res) => {
 exports.createSession = async (req, res) => {
   const sessionId = uuidv4();
   const leaderId = req.user.id;
-  const userId = req.user.id; 
+  const userId = req.user.id;
 
   try {
     const session = await Session.create({
-      id: sessionId,
+      SessionId: sessionId,
       userId,
       leaderId
     });
+
     try {
-      await redis.set(`session:${sessionId}`, JSON.stringify({ objects: [{userId}] }));
+      await redis.set(`session:${sessionId}`, JSON.stringify({ objects: [{ userId }] }));
     } catch (error) {
-      res.status(500).json({ error: 'Erro ao criar a sessão' });
+      console.error('Erro ao salvar no Redis:', error);
+      return res.status(500).json({ error: 'Erro ao salvar a sessão no Redis' });
     }
-    
-    res.json({ sessionId: session.id });
+
+    res.json({ sessionId: session.SessionId });
   } catch (error) {
-    console.error(error);
+    console.error('Erro ao salvar a sessão no banco:', error);
     res.status(500).json({ error: 'Erro ao salvar a sessão no banco' });
   }
 };
@@ -40,9 +44,8 @@ exports.addUserToSession = async (req, res) => {
   const { sessionId } = req.body;
   const userId = req.user.id;
 
-
   try {
-    const session = await Session.findByPk(sessionId);
+    const session = await Session.findOne({ where: { SessionId: sessionId } });
     if (!session) return res.status(404).json({ error: 'Sessão não encontrada' });
 
     const existing = await UserSession.findOne({
@@ -73,7 +76,7 @@ exports.addUserToSession = async (req, res) => {
     return res.json({ message: 'Usuário adicionado à sessão com sucesso' });
 
   } catch (error) {
-    console.error(error);
+    console.error('Erro ao adicionar usuário à sessão:', error);
     res.status(500).json({ error: 'Erro ao adicionar usuário à sessão' });
   }
 };

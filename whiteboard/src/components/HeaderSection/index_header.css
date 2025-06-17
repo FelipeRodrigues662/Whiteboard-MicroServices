@@ -1,7 +1,7 @@
 .modern-header {
   background: transparent !important;
-  padding: 0 24px;
-  height: 140px;
+  padding: 0 14px;
+  height: 200px;
   line-height: normal;
   border-bottom: none !important;
   align-self: center;
@@ -20,23 +20,11 @@
   margin-top: 16px;
 }
 
-.login-button {
-  background: transparent !important;
-  border-color: #5612b5 !important;
-  color: #9c62ee !important;
-  font-weight: 500;
-}
-
-.login-button:hover {
-  background: rgba(86, 18, 181, 0.1) !important;
-  border-color: #7d3dda !important;
-  color: #b07df1 !important;
-}
-
 .signup-button {
   background: linear-gradient(90deg, #5612b5, #9c62ee) !important;
   border: none !important;
   font-weight: 500;
+  cursor: pointer;
 }
 
 .signup-button:hover {

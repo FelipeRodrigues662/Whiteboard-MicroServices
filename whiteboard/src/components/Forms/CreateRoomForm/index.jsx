@@ -1,6 +1,6 @@
 import React from 'react';
-import { Form, Input, Button, Typography, message } from 'antd';
-import { UserOutlined, RocketFilled, RightCircleOutlined, CopyOutlined } from '@ant-design/icons';
+import { Button, Typography, message } from 'antd';
+import { RightCircleOutlined, CopyOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './index_1.css';
@@ -10,11 +10,18 @@ const { Title, Text } = Typography;
 const CreateRoomForm = () => {
     // const [form] = Form.useForm();
     const [messageApi, contextHolder] = message.useMessage();
+    const urlEndpoint = import.meta.env.VITE_URL_ENDPOINTS;
     const navigate = useNavigate();
+    const jwtToken = localStorage.getItem('token');
 
     const createSession = async () => {
         try {
-          const res = await axios.post('http://localhost:4000/create-session');
+          const res = await axios.post(`${urlEndpoint}/create-session`, {}, {
+            headers: {
+              'Authorization': `Bearer ${jwtToken}`
+            }
+          });
+
           if (!res.data.sessionId) {
                     messageApi.open({
                         type: 'warning',

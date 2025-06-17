@@ -1,17 +1,17 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../database/database.js');
-const User = require('./User.js'); 
+const User = require('./User.js');
 
 const Session = sequelize.define('Session', {
     id: {
         type: DataTypes.INTEGER,
         autoIncrement: true,
         primaryKey: true
-    },  
-    SessionId: {
+    },
+    sessionId: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
-        primaryKey: true
+        unique: true
     },
     userId: {
         type: DataTypes.INTEGER,
@@ -21,15 +21,15 @@ const Session = sequelize.define('Session', {
         type: DataTypes.INTEGER,
         allowNull: false
     },
-    Data: {
+    data: {
         type: DataTypes.JSON
     }
 }, {
-  tableName: 'sessions',
-  timestamps: true
+    tableName: 'sessions',
+    timestamps: true
 });
 
-// Associação 1:N (um usuário pode ser líder de várias sessões)
+// Associação: Cada sessão pertence a um líder (user) e um usuário
 Session.belongsTo(User, { as: 'leader', foreignKey: 'leaderId' });
 Session.belongsTo(User, { as: 'user', foreignKey: 'userId' });
 

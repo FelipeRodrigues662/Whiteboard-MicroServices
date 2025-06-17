@@ -1,5 +1,6 @@
 const CoordinationSocketService = (() => {
   let socket = null;
+  let currentSessionId = null;
 
   const connect = ({ url, token, sessionId, onMessage }) => {
     if (socket && socket.readyState === WebSocket.OPEN) {
@@ -7,16 +8,34 @@ const CoordinationSocketService = (() => {
       return;
     }
 
-    socket = new WebSocket(url);
+    currentSessionId = sessionId;
+
+    // Corrigido: Inclui o token como query param com crase
+    const wsUrl = `${url}?token=${token}`;
+    socket = new WebSocket(wsUrl);
 
     socket.onopen = () => {
-      console.log('Conectado ao servidor WebSocket');
-      socket.send(JSON.stringify({ token, sessionId, data: { type: 'join' } }));
+      console.log('Conectado ao WebSocket');
+
+      // Mensagem opcional ao conectar
+      sendMessage({
+        sessionId: currentSessionId,
+        type: 'join',
+        data: { message: 'User joined the session' }
+      });
     };
 
     socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (onMessage) onMessage(data);
+      try {
+        const data = JSON.parse(event.data);
+        if (onMessage) onMessage(data);
+      } catch (err) {
+        console.error('Erro ao parsear mensagem WebSocket:', err);
+      }
+    };
+
+    socket.onerror = (error) => {
+      console.error('WebSocket erro:', error);
     };
 
     socket.onclose = () => {
@@ -24,14 +43,25 @@ const CoordinationSocketService = (() => {
     };
   };
 
-  const sendMessage = (message) => {
+  const sendMessage = ({ sessionId, type, data }) => {
     if (socket && socket.readyState === WebSocket.OPEN) {
+      const message = {
+        sessionId: sessionId || currentSessionId,
+        type,
+        data
+      };
       socket.send(JSON.stringify(message));
+    } else {
+      console.warn('WebSocket não está aberto. Não foi possível enviar mensagem.');
     }
   };
 
   const disconnect = () => {
-    if (socket) socket.close();
+    if (socket) {
+      socket.close();
+      socket = null;
+      currentSessionId = null;
+    }
   };
 
   return { connect, sendMessage, disconnect };

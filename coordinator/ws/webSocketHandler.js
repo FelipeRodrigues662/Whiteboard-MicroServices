@@ -1,5 +1,5 @@
 const WebSocket = require('ws');
-const { verifyJWT } = require('../utils/jwtUtils'); 
+const { verifyJWT } = require('../utils/jwtUtils');
 const axios = require('axios');
 const API_BASE_URL = 'http://localhost:4010';
 
@@ -9,11 +9,19 @@ const handleWebSocket = (server, channel) => {
   const wss = new WebSocket.Server({ server });
 
   wss.on('connection', (ws, req) => {
+    // Extrair token da URL
     const urlParams = new URLSearchParams(req.url.slice(1));
     const token = urlParams.get('token');
 
     if (!token) {
       ws.close(4000, 'Token não fornecido');
+      return;
+    }
+
+    // Validar JWT
+    const user = verifyJWT(token);
+    if (!user) {
+      ws.close(4001, 'Token inválido');
       return;
     }
 
@@ -24,12 +32,12 @@ const handleWebSocket = (server, channel) => {
         const parsed = JSON.parse(message);
         const { sessionId: sid, data } = parsed;
 
-        // Armazena o sessionId
+        // Se for a primeira mensagem, registra o sessionId
         if (!sessionId) {
           sessionId = sid;
 
-          // Adiciona usuário à sessão via API
           try {
+            // Adicionar o usuário à sessão via API
             await axios.post(`${API_BASE_URL}/session/add-user`, { sessionId }, {
               headers: {
                 Authorization: `Bearer ${token}`
@@ -42,7 +50,7 @@ const handleWebSocket = (server, channel) => {
           }
         }
 
-        // Armazena o WebSocket do usuário
+        // Salvar o WebSocket do usuário
         if (!clients.has(sessionId)) {
           clients.set(sessionId, []);
         }
@@ -51,8 +59,15 @@ const handleWebSocket = (server, channel) => {
           clients.get(sessionId).push(ws);
         }
 
-        const event = { sessionId, data };
-        console.log(`Enviando evento para a fila RabbitMQ para a sessão ${sessionId}: ${JSON.stringify(event)}`);
+        // Enviar evento para RabbitMQ
+        const event = {
+          sessionId,
+          type: 'user-event',  // Ajuste o tipo conforme necessário
+          data
+        };
+
+        console.log(`Enviando evento para RabbitMQ sessão ${sessionId}:`, event);
+
         channel.sendToQueue('whiteboard_events', Buffer.from(JSON.stringify(event)), { persistent: true });
 
       } catch (e) {
@@ -63,9 +78,9 @@ const handleWebSocket = (server, channel) => {
 
     ws.on('close', async () => {
       if (sessionId && clients.has(sessionId)) {
-        const updated = clients.get(sessionId).filter(c => c !== ws);
-        if (updated.length) {
-          clients.set(sessionId, updated);
+        const updatedClients = clients.get(sessionId).filter(c => c !== ws);
+        if (updatedClients.length > 0) {
+          clients.set(sessionId, updatedClients);
         } else {
           clients.delete(sessionId);
         }
@@ -84,33 +99,33 @@ const handleWebSocket = (server, channel) => {
         }
       }
     });
-
   });
 
+  // Consumir mensagens da fila RabbitMQ
   channel.consume('whiteboard_events', (msg) => {
     if (msg) {
-      const event = JSON.parse(msg.content.toString());
-      const { sessionId, data } = event;
+      try {
+        const event = JSON.parse(msg.content.toString());
+        const { sessionId, type, data } = event;
 
-      if (clients.has(sessionId)) {
-        clients.get(sessionId).forEach(ws => {
-          if (ws.readyState === WebSocket.OPEN) {
-            try {
-              console.log(`Enviando para o WebSocket da sessão ${sessionId} com dados: ${JSON.stringify(data)}`);
-              ws.send(JSON.stringify({
-                  type,
-                  data
-                }));
-            } catch (e) {
-              console.error('Erro ao enviar mensagem para o WebSocket:', e.message);
+        if (clients.has(sessionId)) {
+          clients.get(sessionId).forEach(ws => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type, data }));
+            } else {
+              // Remover conexões mortas
+              const updated = clients.get(sessionId).filter(client => client.readyState === WebSocket.OPEN);
+              clients.set(sessionId, updated);
             }
-          } else {
-            clients.set(sessionId, clients.get(sessionId).filter(client => client !== ws));
-          }
-        });
-      }
+          });
+        }
 
-      channel.ack(msg);
+        channel.ack(msg);
+
+      } catch (e) {
+        console.error('Erro ao processar evento RabbitMQ:', e.message);
+        channel.nack(msg, false, false); // Rejeita a mensagem, sem reencaminhar
+      }
     }
   });
 };
