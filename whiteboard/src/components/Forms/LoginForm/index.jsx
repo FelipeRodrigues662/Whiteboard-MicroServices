@@ -30,7 +30,7 @@ const LoginForm = ({ messageApi }) => {
                 password: values.password,
             });
             console.log(response.data.token);
-            sessionStorage.setItem('token', response.data.token);
+            localStorage.setItem('token', response.data.token);
             messageApi.open({
                 type: 'success',
                 content: 'Seja bem-vindo(a)!',

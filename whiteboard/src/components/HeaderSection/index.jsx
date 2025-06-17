@@ -10,11 +10,11 @@ const { Title } = Typography;
 
 export default function HeaderSection() {
     const navigate = useNavigate();
-    const isLoggedIn = sessionStorage.getItem('token');
+    const isLoggedIn = localStorage.getItem('token');
 
     const handleLogout = () => {
-        // Remove o token do sessionStorage
-        sessionStorage.removeItem('token');
+        // Remove o token do localStorage
+        localStorage.removeItem('token');
         // Redireciona para a página inicial
         // messageApi.open({
         //     type: 'success',
