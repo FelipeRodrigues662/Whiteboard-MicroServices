@@ -12,10 +12,15 @@ const CreateRoomForm = () => {
     const [messageApi, contextHolder] = message.useMessage();
     const urlEndpoint = import.meta.env.VITE_URL_ENDPOINTS;
     const navigate = useNavigate();
+    const jwtToken = localStorage.getItem('token');
 
     const createSession = async () => {
         try {
-          const res = await axios.post(`${urlEndpoint}/create-session`);
+          const res = await axios.post(`${urlEndpoint}/create-session`, {}, {
+            headers: {
+              'Authorization': `Bearer ${jwtToken}`
+            }
+          });
 
           if (!res.data.sessionId) {
                     messageApi.open({
