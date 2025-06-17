@@ -17,7 +17,7 @@ const LoginForm = () => {
         console.log(values);
     
         try {
-          const response = await fetch('https://d701-2804-4a24-61ac-ba00-a936-245c-28a7-7121.ngrok-free.app/api/auth/register', {
+          const response = await fetch('http://localhost:4000/api/auth/register', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'

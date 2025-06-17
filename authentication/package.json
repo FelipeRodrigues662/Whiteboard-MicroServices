@@ -1,0 +1,27 @@
+{
+    "name": "session-service",
+    "version": "1.0.0",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "dev": "nodemon index.js"
+    },
+    "dependencies": {
+        "cors": "^2.8.5",
+        "dotenv": "^16.0.3",
+        "express": "^4.18.2",
+        "ioredis": "^5.x.x",
+        "jsonwebtoken": "^9.0.0",
+        "redis": "^4.6.7",
+        "swagger-jsdoc": "^6.2.8",
+        "swagger-ui-express": "^4.6.3",
+        "uuid": "^11.1.0",
+        "bcryptjs": "^2.4.3",
+        "mariadb": "^3.4.0",
+        "sequelize": "^6.37.5",
+        "os": "^0.1.2"
+    },
+    "devDependencies": {
+        "nodemon": "^2.0.22"
+    }
+}

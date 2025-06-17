@@ -23,7 +23,7 @@ const LoginForm = () => {
         }
     
         try {
-            const response = await axios.post('https://d701-2804-4a24-61ac-ba00-a936-245c-28a7-7121.ngrok-free.app/api/auth/login', {
+            const response = await axios.post('http://localhost:4000/api/auth/login', {
                 email: values.email,
                 password: values.password,
             });

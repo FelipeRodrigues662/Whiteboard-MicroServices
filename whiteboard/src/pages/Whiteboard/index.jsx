@@ -109,7 +109,7 @@ const Whiteboard = () => {
 
         // Conecta ao WebSocket
         socketService.connect({
-            url: `ws://f5dd-2804-4a24-61ac-ba00-a936-245c-28a7-7121.ngrok-free.app/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjcsImVtYWlsIjoiYW50aG9ueUB0ZXN0ZS5jb20iLCJpYXQiOjE3NDY5MTc4ODQsImV4cCI6MTc0NzI3Nzg4NH0.2yk9mkTQ5cggGkOmL2SxscDAsjD1_LQsX9zPCm7xK7Q`,
+            url: `ws://localhost:3000/?token=${token}`,
             sessionId,
             onMessage: (data) => {
                 try {

@@ -14,7 +14,7 @@ const CreateRoomForm = () => {
 
     const createSession = async () => {
         try {
-          const res = await axios.post('https://d701-2804-4a24-61ac-ba00-a936-245c-28a7-7121.ngrok-free.app/create-session');
+          const res = await axios.post('http://localhost:4000/create-session');
           if (!res.data.sessionId) {
                     messageApi.open({
                         type: 'warning',
