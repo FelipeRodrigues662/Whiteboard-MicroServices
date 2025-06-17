@@ -11,7 +11,6 @@ const Session = sequelize.define('Session', {
     SessionId: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
-        primaryKey: true
     },
     userId: {
         type: DataTypes.INTEGER,
@@ -33,4 +32,4 @@ const Session = sequelize.define('Session', {
 Session.belongsTo(User, { as: 'leader', foreignKey: 'leaderId' });
 Session.belongsTo(User, { as: 'user', foreignKey: 'userId' });
 
-module.exports = Session;
+module.exports = Session;
