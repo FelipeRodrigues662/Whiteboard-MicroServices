@@ -10,14 +10,14 @@ const CoordinationSocketService = (() => {
 
     currentSessionId = sessionId;
 
-    // Inclui o token como query param
-    const wsUrl = ${url}?token=${token};
+    // Corrigido: Inclui o token como query param com crase
+    const wsUrl = `${url}?token=${token}`;
     socket = new WebSocket(wsUrl);
 
     socket.onopen = () => {
       console.log('Conectado ao WebSocket');
 
-      // Opcional: enviar uma mensagem inicial se quiser
+      // Mensagem opcional ao conectar
       sendMessage({
         sessionId: currentSessionId,
         type: 'join',

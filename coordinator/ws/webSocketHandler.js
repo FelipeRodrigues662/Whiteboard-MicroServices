@@ -10,7 +10,7 @@ const handleWebSocket = (server, channel) => {
 
   wss.on('connection', (ws, req) => {
     // Extrair token da URL
-    const url = new URL(req.url, http://${req.headers.host});
+    const url = new URL(req.url, `http://${req.headers.host}`);
     const token = url.searchParams.get('token');
 
     if (!token) {
@@ -37,10 +37,10 @@ const handleWebSocket = (server, channel) => {
           sessionId = sid;
 
           try {
-            // Adicionar o usuário na sessão via API
-            await axios.post(${API_BASE_URL}/session/add-user, { sessionId }, {
+            // Adicionar o usuário à sessão via API
+            await axios.post(`${API_BASE_URL}/session/add-user`, { sessionId }, {
               headers: {
-                Authorization: Bearer ${token}
+                Authorization: `Bearer ${token}`
               }
             });
           } catch (err) {
@@ -62,11 +62,11 @@ const handleWebSocket = (server, channel) => {
         // Enviar evento para RabbitMQ
         const event = {
           sessionId,
-          type: 'user-event',  // Aqui você pode ajustar o tipo de evento conforme desejar
+          type: 'user-event',  // Ajuste o tipo conforme necessário
           data
         };
 
-        console.log(Enviando evento para RabbitMQ sessão ${sessionId}:, event);
+        console.log(`Enviando evento para RabbitMQ sessão ${sessionId}:`, event);
 
         channel.sendToQueue('whiteboard_events', Buffer.from(JSON.stringify(event)), { persistent: true });
 
@@ -89,9 +89,9 @@ const handleWebSocket = (server, channel) => {
       // Remove o usuário da sessão no Redis via API
       if (sessionId) {
         try {
-          await axios.post(${API_BASE_URL}/session/remove-user, { sessionId }, {
+          await axios.post(`${API_BASE_URL}/session/remove-user`, { sessionId }, {
             headers: {
-              Authorization: Bearer ${token}
+              Authorization: `Bearer ${token}`
             }
           });
         } catch (err) {
@@ -130,4 +130,4 @@ const handleWebSocket = (server, channel) => {
   });
 };
 
-module.exports = { handleWebSocket };
+module.exports = { handleWebSocket };
