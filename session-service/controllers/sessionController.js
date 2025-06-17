@@ -4,7 +4,7 @@ const Session = require('../models/Session.js');
 
 exports.getSession = async (req, res) => {
   try {
-    const data = await redis.get(`session:${req.params.id}`);
+    const data = await redis.get(session:${req.params.id});
     if (!data) return res.status(404).json({ error: 'Sessão não encontrada' });
     res.json(JSON.parse(data));
   } catch (error) {
@@ -13,23 +13,25 @@ exports.getSession = async (req, res) => {
 };
 
 exports.createSession = async (req, res) => {
-  const sessionId = uuidv4();
+  const sessionId = uuidv4(); 
   const leaderId = req.user.id;
   const userId = req.user.id; 
 
   try {
     const session = await Session.create({
-      id: sessionId,
+      SessionId: sessionId, 
       userId,
       leaderId
     });
+
     try {
-      await redis.set(`session:${sessionId}`, JSON.stringify({ objects: [{userId}] }));
+      await redis.set(session:${sessionId}, JSON.stringify({ objects: [{ userId }] }));
     } catch (error) {
-      res.status(500).json({ error: 'Erro ao criar a sessão' });
+      console.error(error);
+      return res.status(500).json({ error: 'Erro ao salvar a sessão no Redis' });
     }
-    
-    res.json({ sessionId: session.id });
+
+    res.json({ sessionId: session.SessionId }); 
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Erro ao salvar a sessão no banco' });
@@ -55,7 +57,7 @@ exports.addUserToSession = async (req, res) => {
 
     await UserSession.create({ sessionId, userId });
 
-    const redisKey = `session:${sessionId}`;
+    const redisKey = session:${sessionId};
     const sessionData = await redis.get(redisKey);
 
     let parsedData = { objects: [] };
@@ -83,7 +85,7 @@ exports.removeUserFromSession = async (req, res) => {
   const userId = req.user.id;
 
   try {
-    const redisKey = `session:${sessionId}`;
+    const redisKey = session:${sessionId};
     const sessionData = await redis.get(redisKey);
 
     if (!sessionData) {
@@ -106,6 +108,6 @@ exports.removeUserFromSession = async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao remover usuário da sessão:', error);
-    return res.status(500).json({ error: 'Erro interno ao remover usuário da sessão' });
-  }
+    return res.status(500).json({ error: 'Erro interno ao remover usuário da sessão' });
+  }
 };
