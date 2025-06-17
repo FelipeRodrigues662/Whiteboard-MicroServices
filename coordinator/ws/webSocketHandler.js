@@ -98,9 +98,9 @@ const handleWebSocket = (server, channel) => {
             try {
               console.log(`Enviando para o WebSocket da sessão ${sessionId} com dados: ${JSON.stringify(data)}`);
               ws.send(JSON.stringify({
-                type: 'draw',
-                payload: data
-              }));
+                  type,
+                  data
+                }));
             } catch (e) {
               console.error('Erro ao enviar mensagem para o WebSocket:', e.message);
             }
