@@ -33,7 +33,7 @@ const Recents = () => {
                 }
 
                 // Adiciona mais alguns exemplos (remover quando tiver dados reais)
-                for (let i = 1; i <= 0; i++) {
+                for (let i = 1; i <= 4; i++) {
                     savedBoards.push({
                         id: `example-${i}`,
                         name: `Projeto ${i}`,
@@ -121,7 +121,7 @@ const Recents = () => {
     return (
         <div className="recents-container">
             {contextHolder}
-            <Title level={3} className="recents-title gradient-text-2">Seus Boards Recentes</Title>
+            <Title level={3} style={{ color: '#fff' }} className="recents-title gradient-text-2">Seus Boards Recentes</Title>
 
             <div className="boards-grid">
                 <List
