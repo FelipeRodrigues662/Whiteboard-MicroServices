@@ -41,38 +41,12 @@ services:
       - whiteboard-network
     restart: unless-stopped
 
-  mongodb:
-    container_name: mongodb
-    image: mongo:latest
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodbdata:/data/db
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=admin
-    networks:
-      - whiteboard-network
-    restart: unless-stopped
-    
   # ---------- SERVIÇOS BACKEND ----------
-  core:
-    build:
-      context: ./whiteboard-core
-    ports:
-      - "3002:3002"
-    depends_on:
-      - mongodb
-    environment:
-      - PORT=3002
-      - MONGODB_URI=mongodb://admin:admin@mongodb:27017/whiteboard-core?authSource=admin
-    networks:
-      - whiteboard-network
   coordinator:
     build:
       context: ./coordinator
     ports:
-      - "3000:3000"
+      - "4000:4000"
     depends_on:
       - rabbitmq
       - redis
@@ -87,7 +61,27 @@ services:
     build:
       context: ./session-service
     ports:
-      - "4000:4000"
+      - "4010:4010"
+    depends_on:
+      - rabbitmq
+      - redis
+      - mariadb
+    environment:
+      - REDIS_HOST=redis
+      - RABBITMQ_HOST=rabbitmq
+      - MARIADB_HOST=mariadb
+      - MARIADB_USER=root
+      - MARIADB_PASSWORD=admin
+      - MARIADB_DATABASE=whiteboard_app_db
+      - JWT_SECRET=segredo123
+    networks:
+      - whiteboard-network
+
+  authentication:
+    build:
+      context: ./authentication
+    ports:
+      - "4020:4020"
     depends_on:
       - rabbitmq
       - redis
