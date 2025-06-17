@@ -12,7 +12,7 @@ const LoginForm = ({ messageApi }) => {
     const [password, setPassword] = useState('');
     const navigate = useNavigate();
     const [form] = Form.useForm();
-    const urlEndpoint = import.meta.env.VITE_URL_ENDPOINTS;
+    const urlEndpoint = import.meta.env.VITE_URL_AUTH;
 
     const handleRegister = async (values) => {
         console.log(values);

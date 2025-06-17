@@ -13,7 +13,7 @@ const LoginForm = ({ messageApi }) => {
     const [error, setError] = useState(null);  // Estado para erros
     const [form] = Form.useForm();
     const navigate = useNavigate();
-    const urlEndpoint = import.meta.env.VITE_URL_ENDPOINTS;
+    const urlEndpoint = import.meta.env.VITE_URL_AUTH;
     
 
     const handleLogin = async (values) => {
