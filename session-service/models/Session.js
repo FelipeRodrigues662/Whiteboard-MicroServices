@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../database/sequelize');
+const sequelize = require('../database/database.js');
 const User = require('./User.js'); 
 
 const Session = sequelize.define('Session', {
@@ -30,7 +30,7 @@ const Session = sequelize.define('Session', {
 });
 
 // Associação 1:N (um usuário pode ser líder de várias sessões)
-Session.belongsTo(User, { as: 'id', foreignKey: 'leaderId' });
-Session.belongsTo(User, { as: 'id', foreignKey: 'userId' });
+Session.belongsTo(User, { as: 'leader', foreignKey: 'leaderId' });
+Session.belongsTo(User, { as: 'user', foreignKey: 'userId' });
 
 module.exports = Session;

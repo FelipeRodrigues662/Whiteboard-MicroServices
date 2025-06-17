@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { createSession, getSession } = require('../controllers/sessionController');
+const { createSession, getSession, addUserToSession, removeUserFromSession } = require('../controllers/sessionController');
+const authenticateToken = require('../middleware/auth.js');
+
 
 /**
  * @swagger
@@ -11,7 +13,7 @@ const { createSession, getSession } = require('../controllers/sessionController'
  *       200:
  *         description: Sessão criada com sucesso
  */
-router.post('/create-session', createSession);
+router.post('/create-session', authenticateToken, createSession);
 
 /**
  * @swagger
@@ -28,7 +30,7 @@ router.post('/create-session', createSession);
  *       200:
  *         description: Estado da sessão
  */
-router.get('/session/:id', getSession);
+router.get('/session/:id', authenticateToken, getSession);
 
 /**
  * @swagger
@@ -52,7 +54,7 @@ router.get('/session/:id', getSession);
  *       404:
  *         description: Sessão não encontrada
  */
-router.post('/session/add-user', addUserToSession);
+router.post('/session/add-user', authenticateToken, addUserToSession);
 
 /**
  * @swagger

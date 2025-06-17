@@ -41,33 +41,7 @@ services:
       - whiteboard-network
     restart: unless-stopped
 
-  mongodb:
-    container_name: mongodb
-    image: mongo:latest
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodbdata:/data/db
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=admin
-    networks:
-      - whiteboard-network
-    restart: unless-stopped
-    
   # ---------- SERVIÇOS BACKEND ----------
-  core:
-    build:
-      context: ./whiteboard-core
-    ports:
-      - "3002:3002"
-    depends_on:
-      - mongodb
-    environment:
-      - PORT=3002
-      - MONGODB_URI=mongodb://admin:admin@mongodb:27017/whiteboard-core?authSource=admin
-    networks:
-      - whiteboard-network
   coordinator:
     build:
       context: ./coordinator
