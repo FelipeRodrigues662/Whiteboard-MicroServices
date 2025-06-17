@@ -46,7 +46,7 @@ services:
     build:
       context: ./coordinator
     ports:
-      - "3000:3000"
+      - "4000:4000"
     depends_on:
       - rabbitmq
       - redis
@@ -61,7 +61,7 @@ services:
     build:
       context: ./session-service
     ports:
-      - "4000:4000"
+      - "4010:4010"
     depends_on:
       - rabbitmq
       - redis
@@ -77,17 +77,23 @@ services:
     networks:
       - whiteboard-network
 
-  # ---------- FRONTEND ----------
-  frontend:
+  authentication:
     build:
-      context: ./whiteboard-frontend
+      context: ./authentication
     ports:
-      - "3001:3000"
-    environment:
-      - CHOKIDAR_USEPOLLING=true
+      - "4020:4020"
     depends_on:
-      - coordinator
-      - session-service
+      - rabbitmq
+      - redis
+      - mariadb
+    environment:
+      - REDIS_HOST=redis
+      - RABBITMQ_HOST=rabbitmq
+      - MARIADB_HOST=mariadb
+      - MARIADB_USER=root
+      - MARIADB_PASSWORD=admin
+      - MARIADB_DATABASE=whiteboard_app_db
+      - JWT_SECRET=segredo123
     networks:
       - whiteboard-network
 
@@ -98,3 +104,4 @@ networks:
 
 volumes:
   vol1:
+  mongodbdata:

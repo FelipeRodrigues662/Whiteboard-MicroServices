@@ -124,6 +124,7 @@ const Whiteboard = () => {
         // Conecta ao WebSocket
         socketService.connect({
             url: `${urlSession}/?token=${token}`,
+
             sessionId,
             onMessage: (data) => {
                 try {

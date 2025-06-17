@@ -16,6 +16,7 @@ const CreateRoomForm = () => {
     const createSession = async () => {
         try {
           const res = await axios.post(`${urlEndpoint}/create-session`);
+
           if (!res.data.sessionId) {
                     messageApi.open({
                         type: 'warning',

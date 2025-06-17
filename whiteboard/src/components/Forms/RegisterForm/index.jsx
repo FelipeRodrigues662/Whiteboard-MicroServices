@@ -19,6 +19,7 @@ const LoginForm = ({ messageApi }) => {
     
         try {
             const response = await fetch(`${urlEndpoint}/api/auth/register`, {
+
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
