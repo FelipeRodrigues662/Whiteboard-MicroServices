@@ -55,7 +55,7 @@ const Whiteboard = () => {
     const [boardName, setBoardName] = useState(localStorage.getItem('whiteboardName') || 'Meu Board');
     const [isEditingName, setIsEditingName] = useState(false);
     const token = localStorage.getItem('token');
-    const urlSession = import.meta.env.VITE_URL_SESSION;
+    const urlCoordinator = import.meta.env.VITE_URL_SESSION;
     const [isEraser, setIsEraser] = useState(false);
 
     const [connectedUsers] = useState([
@@ -63,6 +63,40 @@ const Whiteboard = () => {
         { id: 2, name: 'Maria Souza', avatar: 'M' },
         { id: 3, name: 'Carlos Oliveira', avatar: 'C' },
     ]);
+
+    // Função auxiliar para calcular a distância de um ponto a uma linha
+    const distanceToLine = (x, y, x1, y1, x2, y2) => {
+        const A = x - x1;
+        const B = y - y1;
+        const C = x2 - x1;
+        const D = y2 - y1;
+
+        const dot = A * C + B * D;
+        const len_sq = C * C + D * D;
+        let param = -1;
+
+        if (len_sq !== 0) {
+            param = dot / len_sq;
+        }
+
+        let xx, yy;
+
+        if (param < 0) {
+            xx = x1;
+            yy = y1;
+        } else if (param > 1) {
+            xx = x2;
+            yy = y2;
+        } else {
+            xx = x1 + param * C;
+            yy = y1 + param * D;
+        }
+
+        const dx = x - xx;
+        const dy = y - yy;
+
+        return Math.sqrt(dx * dx + dy * dy);
+    };
 
     // Configura o aviso antes de recarregar
     useEffect(() => {
@@ -85,8 +119,8 @@ const Whiteboard = () => {
             isDrawingMode: true,
             backgroundColor: '#fff',
             renderOnAddRemove: true,
-            enableRetinaScaling: true,
-            selection: false // Desativa a seleção globalmente
+            enableRetinaScaling: false,
+            selection: false
         });
         canvasRef.current = canvas;
 
@@ -113,8 +147,19 @@ const Whiteboard = () => {
         // Ajusta o tamanho do canvas
         const resizeCanvas = () => {
             const container = document.querySelector('.board-container');
-            canvas.setWidth(container.offsetWidth);
-            canvas.setHeight(container.offsetHeight);
+            const width = container.offsetWidth;
+            const height = container.offsetHeight;
+            
+            // Define o tamanho do canvas
+            canvas.setWidth(width);
+            canvas.setHeight(height);
+            
+            // Ajusta a escala para 1:1
+            canvas.setZoom(1);
+            
+            // Centraliza o canvas
+            canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+            
             canvas.renderAll();
         };
 
@@ -122,21 +167,29 @@ const Whiteboard = () => {
         window.addEventListener('resize', resizeCanvas);
 
         // Conecta ao WebSocket
+        const userId = JSON.parse(atob(token.split('.')[1])).userId;
         socketService.connect({
-            url: `${urlSession}/?token=${token}`,
-
+            url: `${urlCoordinator}?token=${token}`,
             sessionId,
+            userId,
             onMessage: (data) => {
                 try {
                     const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-                    let x1, y1, x2, y2, lineColor, width, objectId, objectToRemove, line;
 
-                    switch (parsed.type) {
-                        case 'draw':
-                            ({ x1, y1, x2, y2, color: lineColor, width } = parsed.data);
-                            
-                            // Cria uma nova linha usando fabric.js
-                            line = new fabric.Line([x1, y1, x2, y2], {
+                    // NÃO ignore eventos do próprio usuário!
+                    // if (parsed.userId && parsed.userId === userId) return;
+
+                    if (!parsed || !parsed.type || !parsed.data) {
+                        console.warn('Mensagem recebida com formato inválido:', data);
+                        return;
+                    }
+
+                    const { type, data: eventData } = parsed;
+
+                    switch (type) {
+                        case 'draw': {
+                            const { x1, y1, x2, y2, color: lineColor, width } = eventData;
+                            const line = new fabric.Line([x1, y1, x2, y2], {
                                 stroke: lineColor || color,
                                 strokeWidth: width || brushWidth,
                                 selectable: false,
@@ -144,29 +197,39 @@ const Whiteboard = () => {
                                 strokeLineCap: 'round',
                                 strokeLineJoin: 'round'
                             });
-
                             canvas.add(line);
-                            canvas.getObjects().forEach(obj => {
-                                obj.selectable = false;
-                                obj.evented = false;
-                            });
-                            canvas.discardActiveObject();
                             canvas.renderAll();
                             break;
+                        }
 
-                        case 'erase':
-                            ({ objectId } = parsed.data);
-                            objectToRemove = canvas.getObjects().find(obj => obj.id === objectId);
-                            if (objectToRemove) {
-                                canvas.remove(objectToRemove);
-                                canvas.getObjects().forEach(obj => {
-                                    obj.selectable = false;
-                                    obj.evented = false;
-                                });
-                                canvas.discardActiveObject();
+                        case 'erase': {
+                            const { x1, y1, x2, y2, width: eraserWidth } = eventData;
+                            
+                            // Procura e remove linhas próximas ao segmento da borracha
+                            const objectsToRemove = canvas.getObjects().filter(obj => {
+                                if (obj.type === 'line') {
+                                    // Calcula a distância entre a linha e o segmento da borracha
+                                    const distance = distanceToLine(
+                                        obj.x1, obj.y1,
+                                        x1, y1,
+                                        x2, y2
+                                    );
+                                    
+                                    // Se a distância for menor que o raio da borracha, remove a linha
+                                    return distance < eraserWidth;
+                                }
+                                return false;
+                            });
+
+                            objectsToRemove.forEach(obj => {
+                                canvas.remove(obj);
+                            });
+                            
+                            if (objectsToRemove.length > 0) {
                                 canvas.renderAll();
                             }
                             break;
+                        }
 
                         case 'clear':
                             canvas.clear();
@@ -193,14 +256,14 @@ const Whiteboard = () => {
                             break;
 
                         case 'error':
-                            message.error(parsed.data.message);
+                            message.error(eventData.message);
                             break;
 
                         default:
-                            console.warn('Tipo de mensagem desconhecido:', parsed.type);
+                            console.warn('Tipo de mensagem desconhecido:', type);
                     }
                 } catch (e) {
-                    console.error('Erro ao processar mensagem recebida:', e.message);
+                    console.error('Erro ao processar mensagem recebida:', e);
                 }
             },
         });
@@ -228,83 +291,54 @@ const Whiteboard = () => {
             const handleMouseMove = (options) => {
                 if (isEraser && isDrawing.current) {
                     const pointer = canvasRef.current.getPointer(options.e);
+                    const currentPosition = { x: pointer.x, y: pointer.y };
+                    
+                    // Envia o evento de erase com o segmento da borracha
+                    socketService.sendMessage({
+                        sessionId,
+                        type: 'erase',
+                        data: {
+                            x1: lastPosition.current.x,
+                            y1: lastPosition.current.y,
+                            x2: currentPosition.x,
+                            y2: currentPosition.y,
+                            width: brushWidth * 2 // Raio da borracha
+                        }
+                    });
+
+                    // Remove objetos localmente
                     const objects = canvasRef.current.getObjects();
                     const eraserRadius = brushWidth * 2;
                     
                     // Procura por objetos dentro do raio da borracha
                     const objectsToRemove = objects.filter(obj => {
                         if (obj.type === 'line') {
-                            const distance = distanceToLine(pointer.x, pointer.y, obj.x1, obj.y1, obj.x2, obj.y2);
+                            // Calcula a distância entre a linha e o segmento da borracha
+                            const distance = distanceToLine(
+                                obj.x1, obj.y1,
+                                lastPosition.current.x, lastPosition.current.y,
+                                currentPosition.x, currentPosition.y
+                            );
                             return distance < eraserRadius;
                         }
                         return false;
                     });
 
-                    // Remove todos os objetos encontrados
+                    // Remove os objetos encontrados
                     objectsToRemove.forEach(obj => {
                         canvasRef.current.remove(obj);
-                        canvasRef.current.getObjects().forEach(o => {
-                            o.selectable = false;
-                            o.evented = false;
-                        });
-                        socketService.sendMessage({
-                            sessionId,
-                            type: 'erase',
-                            data: {
-                                objectId: obj.id || Date.now().toString()
-                            }
-                        });
                     });
 
                     if (objectsToRemove.length > 0) {
-                        canvasRef.current.getObjects().forEach(o => {
-                            o.selectable = false;
-                            o.evented = false;
-                        });
-                        canvasRef.current.discardActiveObject();
                         canvasRef.current.renderAll();
                     }
 
-                    lastPosition.current = { x: pointer.x, y: pointer.y };
+                    lastPosition.current = currentPosition;
                 }
             };
 
             const handleMouseUp = () => {
                 isDrawing.current = false;
-            };
-
-            // Função auxiliar para calcular a distância de um ponto a uma linha
-            const distanceToLine = (x, y, x1, y1, x2, y2) => {
-                const A = x - x1;
-                const B = y - y1;
-                const C = x2 - x1;
-                const D = y2 - y1;
-
-                const dot = A * C + B * D;
-                const len_sq = C * C + D * D;
-                let param = -1;
-
-                if (len_sq !== 0) {
-                    param = dot / len_sq;
-                }
-
-                let xx, yy;
-
-                if (param < 0) {
-                    xx = x1;
-                    yy = y1;
-                } else if (param > 1) {
-                    xx = x2;
-                    yy = y2;
-                } else {
-                    xx = x1 + param * C;
-                    yy = y1 + param * D;
-                }
-
-                const dx = x - xx;
-                const dy = y - yy;
-
-                return Math.sqrt(dx * dx + dy * dy);
             };
 
             // Adiciona um indicador visual da borracha
@@ -363,54 +397,35 @@ const Whiteboard = () => {
             const handleMouseDown = (options) => {
                 if (!isEraser) {
                     isDrawing.current = true;
+                    const pointer = canvasRef.current.getPointer(options.e);
                     lastPosition.current = { 
-                        x: options.e.offsetX, 
-                        y: options.e.offsetY 
+                        x: pointer.x, 
+                        y: pointer.y 
                     };
                 }
             };
 
             const handleMouseMove = (options) => {
                 if (isDrawing.current && !isEraser) {
+                    const pointer = canvasRef.current.getPointer(options.e);
                     const currentPosition = { 
-                        x: options.e.offsetX, 
-                        y: options.e.offsetY 
+                        x: pointer.x, 
+                        y: pointer.y 
                     };
 
-                    // Cria uma linha temporária
-                    const line = new fabric.Line([
-                        lastPosition.current.x,
-                        lastPosition.current.y,
-                        currentPosition.x,
-                        currentPosition.y
-                    ], {
-                        stroke: color,
-                        strokeWidth: brushWidth,
-                        selectable: false,
-                        evented: false
-                    });
-
-                    canvasRef.current.add(line);
-                    canvasRef.current.getObjects().forEach(o => {
-                        o.selectable = false;
-                        o.evented = false;
-                    });
-                    canvasRef.current.discardActiveObject();
-                    canvasRef.current.renderAll();
-
-                    const drawingData = {
-                        x1: lastPosition.current.x,
-                        y1: lastPosition.current.y,
-                        x2: currentPosition.x,
-                        y2: currentPosition.y,
-                        color: color,
-                        width: brushWidth
-                    };
-
+                    // NÃO desenhe localmente aqui!
+                    // Apenas envie o evento para o servidor
                     socketService.sendMessage({
                         sessionId,
                         type: 'draw',
-                        data: drawingData,
+                        data: {
+                            x1: lastPosition.current.x,
+                            y1: lastPosition.current.y,
+                            x2: currentPosition.x,
+                            y2: currentPosition.y,
+                            color: color,
+                            width: brushWidth
+                        }
                     });
 
                     lastPosition.current = currentPosition;

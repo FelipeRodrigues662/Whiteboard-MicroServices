@@ -1,16 +1,16 @@
-const { v4: uuidv4 } = require('uuid');
-const redis = require('../database/redisClient');
-const Session = require('../models/Session.js');
-const UserSession = require('../models/UserSession.js');  // Certifique-se que o modelo UserSession existe
+const { v4: uuidv4 } = require("uuid");
+const redis = require("../database/redisClient");
+const Session = require("../models/Session.js");
 
 exports.getSession = async (req, res) => {
   try {
     const data = await redis.get(`session:${req.params.id}`);
-    if (!data) return res.status(404).json({ error: 'Sessão não encontrada' });
+    if (!data) return res.status(404).json({ error: "Sessão não encontrada" });
+
     res.json(JSON.parse(data));
   } catch (error) {
-    console.error('Erro ao recuperar a sessão:', error);
-    res.status(500).json({ error: 'Erro ao recuperar a sessão' });
+    console.error("Erro ao recuperar a sessão:", error);
+    res.status(500).json({ error: "Erro ao recuperar a sessão" });
   }
 };
 
@@ -21,22 +21,27 @@ exports.createSession = async (req, res) => {
 
   try {
     const session = await Session.create({
-      SessionId: sessionId,
+      sessionId,
       userId,
-      leaderId
+      leaderId,
     });
 
     try {
-      await redis.set(`session:${sessionId}`, JSON.stringify({ objects: [{ userId }] }));
+      await redis.set(
+        `session:${sessionId}`,
+        JSON.stringify({ objects: [{ userId }] })
+      );
     } catch (error) {
-      console.error('Erro ao salvar no Redis:', error);
-      return res.status(500).json({ error: 'Erro ao salvar a sessão no Redis' });
+      console.error("Erro ao salvar no Redis:", error);
+      return res
+        .status(500)
+        .json({ error: "Erro ao salvar a sessão no Redis" });
     }
 
-    res.json({ sessionId: session.SessionId });
+    res.json({ sessionId: session.sessionId });
   } catch (error) {
-    console.error('Erro ao salvar a sessão no banco:', error);
-    res.status(500).json({ error: 'Erro ao salvar a sessão no banco' });
+    console.error("Erro ao salvar a sessão no banco:", error);
+    res.status(500).json({ error: "Erro ao salvar a sessão no banco" });
   }
 };
 
@@ -45,18 +50,19 @@ exports.addUserToSession = async (req, res) => {
   const userId = req.user.id;
 
   try {
-    const session = await Session.findOne({ where: { SessionId: sessionId } });
-    if (!session) return res.status(404).json({ error: 'Sessão não encontrada' });
-
-    const existing = await UserSession.findOne({
-      where: { sessionId, userId }
+    // Verificar se já existe uma Session para esse sessionId e userId
+    const existingSession = await Session.findOne({
+      where: { sessionId, userId },
     });
 
-    if (existing) {
-      return res.status(400).json({ error: 'Usuário já está na sessão' });
+    // Se não existir, criar uma nova Session para esse usuário
+    if (!existingSession) {
+      await Session.create({
+        sessionId,
+        userId,
+        leaderId: null, // Sem líder nesse caso
+      });
     }
-
-    await UserSession.create({ sessionId, userId });
 
     const redisKey = `session:${sessionId}`;
     const sessionData = await redis.get(redisKey);
@@ -66,18 +72,31 @@ exports.addUserToSession = async (req, res) => {
       parsedData = JSON.parse(sessionData);
     }
 
-    const alreadyInRedis = parsedData.objects.some(obj => obj.userId === userId);
-    if (!alreadyInRedis) {
-      parsedData.objects.push({ userId });
+    // Verificar se o usuário já está no Redis
+    const alreadyInRedis = parsedData.objects.some(
+      (obj) => obj.userId === userId
+    );
+
+    // Se o usuário já estiver no Redis, retornamos sucesso ao invés de erro
+    if (alreadyInRedis) {
+      return res.json({
+        message: "Usuário já está na sessão",
+        status: "already_connected",
+      });
     }
+
+    // Adicionar o usuário ao Redis
+    parsedData.objects.push({ userId });
 
     await redis.set(redisKey, JSON.stringify(parsedData));
 
-    return res.json({ message: 'Usuário adicionado à sessão com sucesso' });
-
+    return res.json({
+      message: "Usuário adicionado à sessão com sucesso",
+      status: "connected",
+    });
   } catch (error) {
-    console.error('Erro ao adicionar usuário à sessão:', error);
-    res.status(500).json({ error: 'Erro ao adicionar usuário à sessão' });
+    console.error("Erro ao adicionar usuário à sessão:", error);
+    res.status(500).json({ error: "Erro ao adicionar usuário à sessão" });
   }
 };
 
@@ -90,25 +109,30 @@ exports.removeUserFromSession = async (req, res) => {
     const sessionData = await redis.get(redisKey);
 
     if (!sessionData) {
-      return res.status(404).json({ error: 'Sessão não encontrada no Redis' });
+      return res.status(404).json({ error: "Sessão não encontrada no Redis" });
     }
 
     let parsedData = JSON.parse(sessionData);
 
     const before = parsedData.objects.length;
-    parsedData.objects = parsedData.objects.filter(obj => obj.userId !== userId);
+    parsedData.objects = parsedData.objects.filter(
+      (obj) => obj.userId !== userId
+    );
     const after = parsedData.objects.length;
 
     if (before === after) {
-      return res.status(400).json({ error: 'Usuário não estava presente na sessão' });
+      return res
+        .status(400)
+        .json({ error: "Usuário não estava presente na sessão" });
     }
 
     await redis.set(redisKey, JSON.stringify(parsedData));
 
-    return res.json({ message: 'Usuário removido da sessão com sucesso' });
-
+    return res.json({ message: "Usuário removido da sessão com sucesso" });
   } catch (error) {
-    console.error('Erro ao remover usuário da sessão:', error);
-    return res.status(500).json({ error: 'Erro interno ao remover usuário da sessão' });
+    console.error("Erro ao remover usuário da sessão:", error);
+    return res
+      .status(500)
+      .json({ error: "Erro interno ao remover usuário da sessão" });
   }
 };

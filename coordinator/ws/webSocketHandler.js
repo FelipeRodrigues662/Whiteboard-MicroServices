@@ -1,36 +1,52 @@
-const WebSocket = require('ws');
-const { verifyJWT } = require('../utils/jwtUtils');
-const axios = require('axios');
-const API_BASE_URL = 'http://localhost:4010';
+const WebSocket = require("ws");
+const { verifyJWT } = require("../utils/jwtUtils");
+const axios = require("axios");
+const API_BASE_URL = "http://session-service:4010"; // Se estiver usando Docker
 
 const clients = new Map();
 
 const handleWebSocket = (server, channel) => {
   const wss = new WebSocket.Server({ server });
 
-  wss.on('connection', (ws, req) => {
+  wss.on("connection", (ws, req) => {
+    console.log("Nova conexão WebSocket recebida");
+
     // Extrair token da URL
     const urlParams = new URLSearchParams(req.url.slice(1));
-    const token = urlParams.get('token');
+    const token = urlParams.get("token");
+
+    console.log("Token recebido:", token ? "Presente" : "Ausente");
 
     if (!token) {
-      ws.close(4000, 'Token não fornecido');
+      console.log("Conexão fechada: Token não fornecido");
+      ws.close(4000, "Token não fornecido");
       return;
     }
 
     // Validar JWT
     const user = verifyJWT(token);
+    console.log("Validação do token:", user ? "Sucesso" : "Falha");
+
     if (!user) {
-      ws.close(4001, 'Token inválido');
+      console.log("Conexão fechada: Token inválido");
+      ws.close(4001, "Token inválido");
       return;
     }
 
+    ws.userId = user.id; // Salva o userId na conexão
+
     let sessionId = null;
 
-    ws.on('message', async (message) => {
+    ws.on("message", async (message) => {
       try {
         const parsed = JSON.parse(message);
-        const { sessionId: sid, data } = parsed;
+        const { sessionId: sid, type, data } = parsed;
+
+        // Verifica se o tipo está definido
+        if (!type) {
+          console.warn("Mensagem recebida sem tipo:", parsed);
+          return;
+        }
 
         // Se for a primeira mensagem, registra o sessionId
         if (!sessionId) {
@@ -38,15 +54,37 @@ const handleWebSocket = (server, channel) => {
 
           try {
             // Adicionar o usuário à sessão via API
-            await axios.post(`${API_BASE_URL}/session/add-user`, { sessionId }, {
-              headers: {
-                Authorization: `Bearer ${token}`
+            const response = await axios.post(
+              `${API_BASE_URL}/session/add-user`,
+              { sessionId },
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
               }
-            });
+            );
+
+            // Se chegou aqui, a requisição foi bem sucedida
+            // Não precisamos fazer nada especial, pois o usuário já está na sessão
+            // ou foi adicionado com sucesso
+            console.log("Status da conexão:", response.data.status);
           } catch (err) {
-            console.error('Erro ao adicionar usuário à sessão via API:', err.response?.data || err.message);
-            ws.send(JSON.stringify({ type: 'error', payload: { message: 'Falha ao registrar o usuário na sessão.' } }));
-            return;
+            // Só tratamos como erro se for um erro real (não 200)
+            if (err.response && err.response.status !== 200) {
+              console.error(
+                "Erro ao adicionar usuário à sessão via API:",
+                err.response?.data || err.message
+              );
+              ws.send(
+                JSON.stringify({
+                  type: "error",
+                  data: {
+                    message: "Falha ao registrar o usuário na sessão.",
+                  },
+                })
+              );
+              return;
+            }
           }
         }
 
@@ -62,23 +100,47 @@ const handleWebSocket = (server, channel) => {
         // Enviar evento para RabbitMQ
         const event = {
           sessionId,
-          type: 'user-event',  // Ajuste o tipo conforme necessário
-          data
+          type,
+          data,
+          userId: user.id,
         };
 
-        console.log(`Enviando evento para RabbitMQ sessão ${sessionId}:`, event);
+        console.log(
+          `Enviando evento para RabbitMQ sessão ${sessionId}:`,
+          event
+        );
 
-        channel.sendToQueue('whiteboard_events', Buffer.from(JSON.stringify(event)), { persistent: true });
+        // Enviar para outros clientes na mesma sessão
+        if (clients.has(sessionId)) {
+          clients.get(sessionId).forEach((client) => {
+            // Não envia para o próprio remetente
+            if (client !== ws && client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify(event));
+            }
+          });
+        }
 
+        // Enviar para RabbitMQ para persistência
+        channel.sendToQueue(
+          "whiteboard_events",
+          Buffer.from(JSON.stringify(event)),
+          { persistent: true }
+        );
       } catch (e) {
-        console.error('Erro ao processar mensagem WebSocket:', e.message);
-        ws.send(JSON.stringify({ type: 'error', payload: { message: e.message } }));
+        console.error("Erro ao processar mensagem WebSocket:", e.message);
+        ws.send(
+          JSON.stringify({
+            type: "error",
+            data: { message: e.message },
+            userId: user.id,
+          })
+        );
       }
     });
 
-    ws.on('close', async () => {
+    ws.on("close", async () => {
       if (sessionId && clients.has(sessionId)) {
-        const updatedClients = clients.get(sessionId).filter(c => c !== ws);
+        const updatedClients = clients.get(sessionId).filter((c) => c !== ws);
         if (updatedClients.length > 0) {
           clients.set(sessionId, updatedClients);
         } else {
@@ -89,42 +151,45 @@ const handleWebSocket = (server, channel) => {
       // Remove o usuário da sessão no Redis via API
       if (sessionId) {
         try {
-          await axios.post(`${API_BASE_URL}/session/remove-user`, { sessionId }, {
-            headers: {
-              Authorization: `Bearer ${token}`
+          await axios.post(
+            `${API_BASE_URL}/session/remove-user`,
+            { sessionId },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
             }
-          });
+          );
         } catch (err) {
-          console.error('Erro ao remover usuário da sessão via API:', err.response?.data || err.message);
+          console.error(
+            "Erro ao remover usuário da sessão via API:",
+            err.response?.data || err.message
+          );
         }
       }
     });
   });
 
   // Consumir mensagens da fila RabbitMQ
-  channel.consume('whiteboard_events', (msg) => {
+  channel.consume("whiteboard_events", (msg) => {
     if (msg) {
       try {
         const event = JSON.parse(msg.content.toString());
-        const { sessionId, type, data } = event;
+        const { sessionId, type, data, userId } = event;
 
         if (clients.has(sessionId)) {
-          clients.get(sessionId).forEach(ws => {
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type, data }));
-            } else {
-              // Remover conexões mortas
-              const updated = clients.get(sessionId).filter(client => client.readyState === WebSocket.OPEN);
-              clients.set(sessionId, updated);
+          clients.get(sessionId).forEach((ws) => {
+            // Não envia para o remetente original
+            if (ws.readyState === WebSocket.OPEN && ws.userId !== userId) {
+              ws.send(JSON.stringify({ type, data, userId }));
             }
           });
         }
 
         channel.ack(msg);
-
       } catch (e) {
-        console.error('Erro ao processar evento RabbitMQ:', e.message);
-        channel.nack(msg, false, false); // Rejeita a mensagem, sem reencaminhar
+        console.error("Erro ao processar evento RabbitMQ:", e.message);
+        channel.nack(msg, false, false);
       }
     }
   });
