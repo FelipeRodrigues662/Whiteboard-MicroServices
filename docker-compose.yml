@@ -97,6 +97,17 @@ services:
     networks:
       - whiteboard-network
 
+  whiteboard-core:
+    build:
+      context: ./whiteboard-core
+    ports:
+      - "4040:4040"
+    environment:
+      - PORT=4040
+      - MONGODB_URI=mongodb+srv://admin:PQIKWqeWAxMSrtem@clusterwhiteboard.dbqvhl5.mongodb.net/?retryWrites=true&w=majority&appName=ClusterWhiteboard&tls=true&ssl=true
+    networks:
+      - whiteboard-network
+
 # ---------- REDE E VOLUMES ----------
 networks:
   whiteboard-network:

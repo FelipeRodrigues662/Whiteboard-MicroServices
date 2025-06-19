@@ -7,14 +7,13 @@ const cors = require("cors");
 const sessionRoutes = require("./routes/sessionRoutes");
 
 const app = express();
-
+const PORT = 4010;
 app.use(cors());
 app.use(express.json());
-sequelize.sync({ alter: true });
+sequelize.sync({ force : true });
 
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use(sessionRoutes);
 
-const PORT = 4010;
 app.listen(PORT, () => console.log(`Session service rodando na porta ${PORT}`));

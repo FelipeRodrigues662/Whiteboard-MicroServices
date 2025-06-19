@@ -1,14 +1,13 @@
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
-
+require('./ws/wsClient');
 const { connectRabbitMQ } = require('./queue/rabbitmqHandler');
 const { handleWebSocket } = require('./ws/webSocketHandler');
 
 const app = express();
 const server = http.createServer(app);
 const PORT = 4000;
-
 (async () => {
   try {
     const channel = await connectRabbitMQ();

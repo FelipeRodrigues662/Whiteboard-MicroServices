@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createSession, getSession, addUserToSession, removeUserFromSession } = require('../controllers/sessionController');
+const { createSession, getSession, addUserToSession, removeUserFromSession, getActiveSessionsCount, getAllConnectedUsers } = require('../controllers/sessionController');
 const authenticateToken = require('../middleware/auth.js');
 
 
@@ -85,5 +85,27 @@ router.post('/session/add-user', authenticateToken, addUserToSession);
  *         description: Erro interno ao remover usuário da sessão
  */
 router.post('/session/remove-user', authenticateToken, removeUserFromSession);
+
+/**
+ * @swagger
+ * /sessions/active-count:
+ *   get:
+ *     summary: Recupera a quantidade de sessões ativas
+ *     responses:
+ *       200:
+ *         description: Quantidade de sessões ativas
+ */
+router.get('/sessions/active-count', getActiveSessionsCount);
+
+/**
+ * @swagger
+ * /sessions/connected-users:
+ *   get:
+ *     summary: Recupera usuários conectados em todas as sessões
+ *     responses:
+ *       200:
+ *         description: Usuários conectados em todas as sessões
+ */
+router.get('/sessions/connected-users', getAllConnectedUsers);
 
 module.exports = router;
