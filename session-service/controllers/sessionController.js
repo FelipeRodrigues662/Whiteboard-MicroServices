@@ -83,6 +83,7 @@ exports.addUserToSession = async (req, res) => {
         message: "Usuário já está na sessão",
         status: "already_connected",
       });
+    }
 
     // Adicionar o usuário ao Redis
     parsedData.objects.push({ userId });
