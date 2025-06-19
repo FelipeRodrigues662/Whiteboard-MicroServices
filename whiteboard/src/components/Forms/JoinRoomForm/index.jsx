@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState } from 'react';
 import { Form, Input, Button, Typography } from 'antd';
 import { UserOutlined, LoginOutlined} from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -8,10 +8,22 @@ const { Title, Text } = Typography;
 
 const JoinRoomForm = () => {
     const navigate = useNavigate();
+    const [error, setError] = useState(null);  // Estado para erros
+    const [roomCode, setRoomCode] = useState('');
     const [form] = Form.useForm();
 
     const onFinish = (values) => {
         console.log('Dados do formulário:', values);
+
+
+        if (!roomCode) {
+            setError('Informe o código da sala');
+            return;
+        }
+
+        const codigoSala = values.roomCode;
+
+        navigate('/whiteboard/' + codigoSala);
     };
 
     return (
@@ -38,16 +50,6 @@ const JoinRoomForm = () => {
                 layout="vertical"
                 className="custom-form"
             >
-                <Form.Item
-                    name="username"
-                    rules={[{ required: true, message: 'Por favor, insira seu nome!' }]}
-                >
-                    <Input
-                        prefix={<UserOutlined />}
-                        placeholder="Informe seu nome"
-                        size="large"
-                    />
-                </Form.Item>
 
                 <Form.Item
                     name="roomCode"
@@ -56,15 +58,16 @@ const JoinRoomForm = () => {
                     <Input
                         placeholder="Digite o código da sala"
                         size="large"
+                        value={roomCode}
+                        onChange={(e) => setRoomCode(e.target.value)}
                     />
                 </Form.Item>
-
+                {error && <div style={{ color: 'red' }}>{error}</div>}
                 <Form.Item>
                     <Button
                         type="primary"
                         htmlType="submit"
                         size="large"
-                        onClick={() => navigate('/whiteboard')}
                         icon={<LoginOutlined />}
                         block
                         style={{

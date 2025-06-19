@@ -1,23 +1,25 @@
 import { useState } from 'react';
-import { Form, Input, Button, Typography, Checkbox } from 'antd';
+import { Form, Input, Button, Typography } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import './index_register.css';
 
 const { Title, Text } = Typography;
 
-const LoginForm = () => {
+const LoginForm = ({ messageApi }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const navigate = useNavigate();
     const [form] = Form.useForm();
+    const urlEndpoint = import.meta.env.VITE_URL_AUTH;
 
     const handleRegister = async (values) => {
         console.log(values);
     
         try {
-          const response = await fetch('https://d701-2804-4a24-61ac-ba00-a936-245c-28a7-7121.ngrok-free.app/api/auth/register', {
+            const response = await fetch(`${urlEndpoint}/api/auth/register`, {
+
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -30,12 +32,19 @@ const LoginForm = () => {
           });
     
           if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Erro ao registrar usuário');
-          }
-    
-          // Se der tudo certo, redireciona para a tela de login
-          navigate('/login');
+                messageApi.open({
+                    type: 'error',
+                    content: 'Infelizmente não foi possível criar uma conta. Por favor, tente novamente.',
+                });
+            }else{
+                messageApi.open({
+                    type: 'success',
+                    content: 'Usuário criado com sucesso!',
+                });
+                setTimeout(() => {
+                    navigate('/login');
+                }, 1500);
+            }
         } catch (err) {
           console.error(err);
           alert(err.message);
@@ -102,9 +111,6 @@ const LoginForm = () => {
 
                 <Form.Item>
                     <div className="auth-remember-forgot">
-                        <Form.Item name="remember" valuePropName="checked" noStyle>
-                            <Checkbox className="auth-remember-me">Lembrar de mim</Checkbox>
-                        </Form.Item>
 
                         <a className="auth-forgot-password" onClick={() => navigate('/login')}>
                             Entrar em uma conta

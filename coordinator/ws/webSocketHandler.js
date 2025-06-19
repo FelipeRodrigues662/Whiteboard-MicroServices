@@ -1,100 +1,198 @@
-const WebSocket = require('ws');
-const { verifyJWT } = require('../utils/jwtUtils'); // Função para verificar o JWT
+const WebSocket = require("ws");
+const { verifyJWT } = require("../utils/jwtUtils");
+const axios = require("axios");
+const API_BASE_URL = "http://session-service:4010"; // Se estiver usando Docker
 
 const clients = new Map();
 
 const handleWebSocket = (server, channel) => {
   const wss = new WebSocket.Server({ server });
 
-  wss.on('connection', (ws, req) => {
-    // Obtém o token da URL da requisição
+  wss.on("connection", (ws, req) => {
+    console.log("Nova conexão WebSocket recebida");
+
+    // Extrair token da URL
     const urlParams = new URLSearchParams(req.url.slice(1));
-    const token = urlParams.get('token');
+    const token = urlParams.get("token");
+
+    console.log("Token recebido:", token ? "Presente" : "Ausente");
 
     if (!token) {
-      ws.close(4000, 'Token não fornecido');
+      console.log("Conexão fechada: Token não fornecido");
+      ws.close(4000, "Token não fornecido");
       return;
     }
 
-    try {
-      // verifyJWT(token);
+    // Validar JWT
+    const user = verifyJWT(token);
+    console.log("Validação do token:", user ? "Sucesso" : "Falha");
 
-      let sessionId = null;
+    if (!user) {
+      console.log("Conexão fechada: Token inválido");
+      ws.close(4001, "Token inválido");
+      return;
+    }
 
-      // Ao receber mensagem
-      ws.on('message', async (message) => {
-        try {
-          const parsed = JSON.parse(message);
-          const { sessionId: sid, data } = parsed;
+    ws.userId = user.id; // Salva o userId na conexão
+    ws.userName = user.name || user.email || "Usuário"; // Salva o nome do usuário
+
+    let sessionId = null;
+
+    ws.on("message", async (message) => {
+      try {
+        const parsed = JSON.parse(message);
+        const { sessionId: sid, type, data } = parsed;
+
+        // Verifica se o tipo está definido
+        if (!type) {
+          console.warn("Mensagem recebida sem tipo:", parsed);
+          return;
+        }
+
+        // Se for a primeira mensagem, registra o sessionId
+        if (!sessionId) {
           sessionId = sid;
 
-          // Garante que a lista de clientes da sessão está inicializada
-          if (!clients.has(sessionId)) {
-            clients.set(sessionId, []);
-          }
+          try {
+            // Adicionar o usuário à sessão via API
+            const response = await axios.post(
+              `${API_BASE_URL}/session/add-user`,
+              { sessionId },
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            );
 
-          // Adiciona o WebSocket à lista de clientes da sessão, se ainda não estiver lá
-          if (!clients.get(sessionId).includes(ws)) {
-            clients.get(sessionId).push(ws);
-          }
-
-          // Envia o evento de desenho para a fila RabbitMQ
-          const event = { sessionId, data };
-          console.log(`Enviando evento para a fila RabbitMQ para a sessão ${sessionId}: ${JSON.stringify(event)}`);
-          channel.sendToQueue('whiteboard_events', Buffer.from(JSON.stringify(event)), { persistent: true });
-        } catch (e) {
-          console.error('Erro ao processar mensagem WebSocket:', e.message);
-          ws.send(JSON.stringify({ type: 'error', payload: { message: e.message } }));
-        }
-      });
-
-      // Ao fechar a conexão
-      ws.on('close', () => {
-        if (sessionId && clients.has(sessionId)) {
-          // Remove o WebSocket desconectado da lista de clientes da sessão
-          const updated = clients.get(sessionId).filter(c => c !== ws);
-          if (updated.length) {
-            clients.set(sessionId, updated);
-          } else {
-            clients.delete(sessionId);
-          }
-        }
-      });
-
-    } catch (e) {
-      console.error('Token inválido ou expirado:', e.message);
-      ws.close(4001, 'Token inválido ou expirado');
-    }
-  });
-
-  // Consumidor RabbitMQ para processar eventos de desenho
-  channel.consume('whiteboard_events', (msg) => {
-    if (msg) {
-      const event = JSON.parse(msg.content.toString());
-      const { sessionId, data } = event;
-
-      // Broadcast do evento de desenho para todos os clientes da mesma sessão
-      if (clients.has(sessionId)) {
-        clients.get(sessionId).forEach(ws => {
-          if (ws.readyState === WebSocket.OPEN) {
-            try {
-              console.log(`Enviando para o WebSocket da sessão ${sessionId} com dados: ${JSON.stringify(data)}`);
-              ws.send(JSON.stringify({
-                type: 'draw',
-                payload: data
-              }));
-            } catch (e) {
-              console.error('Erro ao enviar mensagem para o WebSocket:', e.message);
+            // Se chegou aqui, a requisição foi bem sucedida
+            // Não precisamos fazer nada especial, pois o usuário já está na sessão
+            // ou foi adicionado com sucesso
+            console.log("Status da conexão:", response.data.status);
+          } catch (err) {
+            // Só tratamos como erro se for um erro real (não 200)
+            if (err.response && err.response.status !== 200) {
+              console.error(
+                "Erro ao adicionar usuário à sessão via API:",
+                err.response?.data || err.message
+              );
+              ws.send(
+                JSON.stringify({
+                  type: "error",
+                  data: {
+                    message: "Falha ao registrar o usuário na sessão.",
+                  },
+                })
+              );
+              return;
             }
-          } else {
-            // Se o WebSocket não está aberto, remove da lista de clientes
-            clients.set(sessionId, clients.get(sessionId).filter(client => client !== ws));
           }
-        });
+        }
+
+        // Salvar o WebSocket do usuário
+        if (!clients.has(sessionId)) {
+          clients.set(sessionId, []);
+        }
+
+        if (!clients.get(sessionId).includes(ws)) {
+          clients.get(sessionId).push(ws);
+        }
+
+        // Enviar evento para RabbitMQ
+        const event = {
+          sessionId,
+          type,
+          data,
+          userId: user.id,
+          userName: ws.userName,
+        };
+
+        console.log(
+          `Enviando evento para RabbitMQ sessão ${sessionId}:`,
+          event
+        );
+
+        // Enviar para outros clientes na mesma sessão
+        if (clients.has(sessionId)) {
+          clients.get(sessionId).forEach((client) => {
+            // Não envia para o próprio remetente
+            if (client !== ws && client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify(event));
+            }
+          });
+        }
+
+        // Enviar para RabbitMQ para persistência
+        channel.sendToQueue(
+          "whiteboard_events",
+          Buffer.from(JSON.stringify(event)),
+          { persistent: true }
+        );
+      } catch (e) {
+        console.error("Erro ao processar mensagem WebSocket:", e.message);
+        ws.send(
+          JSON.stringify({
+            type: "error",
+            data: { message: e.message },
+            userId: user.id,
+          })
+        );
+      }
+    });
+
+    ws.on("close", async () => {
+      if (sessionId && clients.has(sessionId)) {
+        const updatedClients = clients.get(sessionId).filter((c) => c !== ws);
+        if (updatedClients.length > 0) {
+          clients.set(sessionId, updatedClients);
+        } else {
+          clients.delete(sessionId);
+        }
       }
 
-      // Confirma que a mensagem foi processada na fila RabbitMQ
-      channel.ack(msg);
+      // Remove o usuário da sessão no Redis via API
+      if (sessionId) {
+        try {
+          await axios.post(
+            `${API_BASE_URL}/session/remove-user`,
+            { sessionId },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+        } catch (err) {
+          console.error(
+            "Erro ao remover usuário da sessão via API:",
+            err.response?.data || err.message
+          );
+        }
+      }
+    });
+  });
+
+  // Consumir mensagens da fila RabbitMQ
+  channel.consume("whiteboard_events", (msg) => {
+    if (msg) {
+      try {
+        const event = JSON.parse(msg.content.toString());
+        const { sessionId, type, data, userId, userName } = event;
+
+        if (clients.has(sessionId)) {
+          clients.get(sessionId).forEach((ws) => {
+            // Não envia para o remetente original
+            if (ws.readyState === WebSocket.OPEN && ws.userId !== userId) {
+              ws.send(JSON.stringify({ type, data, userId, userName }));
+            }
+          });
+        }
+
+        channel.ack(msg);
+      } catch (e) {
+        console.error("Erro ao processar evento RabbitMQ:", e.message);
+        channel.nack(msg, false, false);
+      }
     }
   });
 };
