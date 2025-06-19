@@ -44,6 +44,10 @@ const colors = [
     '#ffff00', '#00ffff', '#ff00ff', '#c0c0c0', '#808080'
 ];
 
+// Variáveis globais para indicadores/cursor
+const userIndicators = {};
+const userCursors = {};
+
 const Whiteboard = () => {
     const navigate = useNavigate();
     const { sessionId } = useParams();
@@ -60,7 +64,7 @@ const Whiteboard = () => {
     const token = localStorage.getItem('token');
     const urlCoordinator = import.meta.env.VITE_URL_SESSION;
     const [isEraser, setIsEraser] = useState(false);
-
+    
     const [connectedUsers] = useState([
         { id: 1, name: 'João Silva', avatar: 'J' },
         { id: 2, name: 'Maria Souza', avatar: 'M' },
@@ -80,6 +84,88 @@ const Whiteboard = () => {
             window.removeEventListener('beforeunload', handleBeforeUnload);
         };
     }, []);
+
+    // Função para obter o nome do usuário do token
+    const getUserNameFromToken = () => {
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            return payload.name || payload.email || 'Usuário';
+        } catch {
+            return 'Usuário';
+        }
+    };
+
+    // Função para mostrar/atualizar indicador
+    function showUserIndicator(userId, userName, x, y) {
+        if (userIndicators[userId]) {
+            // Atualiza posição e reinicia timeout
+            userIndicators[userId].style.left = `${x}px`;
+            userIndicators[userId].style.top = `${y - 50}px`;
+            userIndicators[userId].classList.add('visible');
+            clearTimeout(userIndicators[userId].timeout);
+        } else {
+            const indicator = document.createElement('div');
+            indicator.className = 'user-drawing-indicator visible';
+            indicator.innerHTML = `
+                <span class="user-avatar">${userName.charAt(0).toUpperCase()}</span>
+                <span>${userName}</span>
+                <span class="drawing-status"></span>
+            `;
+            indicator.style.left = `${x}px`;
+            indicator.style.top = `${y - 50}px`;
+            document.querySelector('.board-container').appendChild(indicator);
+            userIndicators[userId] = indicator;
+        }
+        // Timeout para remover
+        userIndicators[userId].timeout = setTimeout(() => {
+            removeUserIndicator(userId);
+        }, 1200);
+    }
+
+    function removeUserIndicator(userId) {
+        if (userIndicators[userId]) {
+            userIndicators[userId].classList.remove('visible');
+            setTimeout(() => {
+                if (userIndicators[userId] && userIndicators[userId].parentNode) {
+                    userIndicators[userId].parentNode.removeChild(userIndicators[userId]);
+                }
+                delete userIndicators[userId];
+            }, 300);
+        }
+    }
+
+    // Função para mostrar/atualizar cursor
+    function showUserCursor(userId, x, y) {
+        if (userCursors[userId]) {
+            userCursors[userId].style.left = `${x}px`;
+            userCursors[userId].style.top = `${y}px`;
+            userCursors[userId].classList.add('visible');
+        } else {
+            const cursor = document.createElement('div');
+            cursor.className = 'drawing-cursor visible';
+            cursor.style.left = `${x}px`;
+            cursor.style.top = `${y}px`;
+            document.querySelector('.board-container').appendChild(cursor);
+            userCursors[userId] = cursor;
+        }
+        // Timeout para remover
+        if (userCursors[userId].timeout) clearTimeout(userCursors[userId].timeout);
+        userCursors[userId].timeout = setTimeout(() => {
+            removeUserCursor(userId);
+        }, 1200);
+    }
+
+    function removeUserCursor(userId) {
+        if (userCursors[userId]) {
+            userCursors[userId].classList.remove('visible');
+            setTimeout(() => {
+                if (userCursors[userId] && userCursors[userId].parentNode) {
+                    userCursors[userId].parentNode.removeChild(userCursors[userId]);
+                }
+                delete userCursors[userId];
+            }, 200);
+        }
+    }
 
     // Inicializa o canvas e carrega dados salvos
     useEffect(() => {
@@ -137,23 +223,23 @@ const Whiteboard = () => {
 
         // Conecta ao WebSocket
         const userId = JSON.parse(atob(token.split('.')[1])).userId;
+        const userName = getUserNameFromToken();
+        
         socketService.connect({
             url: `${urlCoordinator}?token=${token}`,
             sessionId,
             userId,
+            userName,
             onMessage: (data) => {
                 try {
                     const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-
-                    // NÃO ignore eventos do próprio usuário!
-                    // if (parsed.userId && parsed.userId === userId) return;
 
                     if (!parsed || !parsed.type || !parsed.data) {
                         console.warn('Mensagem recebida com formato inválido:', data);
                         return;
                     }
 
-                    const { type, data: eventData } = parsed;
+                    const { type, data: eventData, userId: senderUserId, userName: senderUserName } = parsed;
 
                     switch (type) {
                         case 'draw': {
@@ -168,6 +254,15 @@ const Whiteboard = () => {
                             });
                             canvas.add(line);
                             canvas.renderAll();
+                            
+                            // Atualizar indicadores de usuário
+                            if (senderUserId && senderUserId !== userId) {
+                                // Criar ou atualizar cursor
+                                showUserCursor(senderUserId, x2, y2);
+                                
+                                // Criar ou atualizar indicador
+                                showUserIndicator(senderUserId, senderUserName || 'Usuário', x2, y2);
+                            }
                             break;
                         }
 
@@ -212,6 +307,10 @@ const Whiteboard = () => {
             window.removeEventListener('resize', resizeCanvas);
             canvas.dispose();
             socketService.disconnect();
+            
+            // Limpar todos os indicadores
+            Object.keys(userIndicators).forEach(removeUserIndicator);
+            Object.keys(userCursors).forEach(removeUserCursor);
         };
     }, [sessionId, token]);
 
@@ -538,85 +637,6 @@ const Whiteboard = () => {
         messageApi.success('Nome do board atualizado!');
     };
 
-    // const handleUndo = () => {
-    //     if (canvasRef.current && canvasRef.current._objects.length > 0) {
-    //         const removedObject = canvasRef.current._objects.pop();
-    //         canvasRef.current.remove(removedObject);
-    //         canvasRef.current.getObjects().forEach(o => {
-    //             o.selectable = false;
-    //             o.evented = false;
-    //         });
-    //         canvasRef.current.discardActiveObject();
-    //         canvasRef.current.renderAll();
-
-    //         socketService.sendMessage({
-    //             sessionId,
-    //             type: 'undo',
-    //             data: {
-    //                 objectId: removedObject.id || Date.now().toString()
-    //             }
-    //         });
-    //     }
-    // };
-
-    // const addShape = (type) => {
-    //     if (!canvasRef.current) return;
-
-    //     setMode('select');
-    //     let shape;
-    //     const left = 100;
-    //     const top = 100;
-    //     const width = 100;
-    //     const height = 100;
-
-    //     switch (type) {
-    //         case 'line':
-    //             shape = new fabric.Line([left, top, left + width, top], {
-    //                 stroke: color,
-    //                 strokeWidth: brushWidth,
-    //                 selectable: true,
-    //                 strokeLineCap: 'round',
-    //                 strokeLineJoin: 'round'
-    //             });
-    //             break;
-    //         case 'rect':
-    //             shape = new fabric.Rect({
-    //                 left: left,
-    //                 top: top,
-    //                 width: width,
-    //                 height: height,
-    //                 fill: 'transparent',
-    //                 stroke: color,
-    //                 strokeWidth: brushWidth,
-    //                 selectable: true
-    //             });
-    //             break;
-    //         default:
-    //             return;
-    //     }
-
-    //     canvasRef.current.add(shape);
-    //     canvasRef.current.setActiveObject(shape);
-    //     canvasRef.current.renderAll();
-
-    //     // Envia a forma para outros usuários
-    //     socketService.sendMessage({
-    //         sessionId,
-    //         data: {
-    //             type: 'shape',
-    //             payload: {
-    //                 shapeType: type,
-    //                 left: left,
-    //                 top: top,
-    //                 width: width,
-    //                 height: height,
-    //                 color: color,
-    //                 strokeWidth: brushWidth
-    //             }
-    //         }
-    //     });
-    // };
-
     return (
         <div className="app-container">
             {contextHolder}
@@ -728,17 +748,6 @@ const Whiteboard = () => {
                             </Tooltip>
                         </Col>
 
-                        {/* <Col>
-                            <Tooltip title="Desfazer">
-                                <Button
-                                    type="text"
-                                    icon={<UndoOutlined />}
-                                    onClick={handleUndo}
-                                    className="tool-button"
-                                />
-                            </Tooltip>
-                        </Col> */}
-
                         <Col>
                             <Tooltip title="Limpar">
                                 <Button
@@ -806,27 +815,6 @@ const Whiteboard = () => {
                             </Tooltip>
                         </Col>
 
-                        {/* <Col>
-                            <Tooltip title="Linha">
-                                <Button
-                                    type="text"
-                                    icon={<LineOutlined />}
-                                    onClick={() => addShape('line')}
-                                    className="tool-button"
-                                />
-                            </Tooltip>
-                        </Col> */}
-
-                        {/* <Col>
-                            <Tooltip title="Retângulo">
-                                <Button
-                                    type="text"
-                                    icon={<BorderOutlined />}
-                                    onClick={() => addShape('rect')}
-                                    className="tool-button"
-                                />
-                            </Tooltip>
-                        </Col> */}
                         <Col>
                             <Slider
                                 min={1}

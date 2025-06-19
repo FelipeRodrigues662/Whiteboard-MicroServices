@@ -2,10 +2,11 @@ const CoordinationSocketService = (() => {
   let socket = null;
   let currentSessionId = null;
   let currentUserId = null;
+  let currentUserName = null;
   let reconnectAttempts = 0;
   const MAX_RECONNECT_ATTEMPTS = 3;
 
-  const connect = ({ url, sessionId, userId, onMessage }) => {
+  const connect = ({ url, sessionId, userId, userName, onMessage }) => {
     if (socket && socket.readyState === WebSocket.OPEN) {
       console.warn("WebSocket já está conectado.");
       return;
@@ -13,6 +14,7 @@ const CoordinationSocketService = (() => {
 
     currentSessionId = sessionId;
     currentUserId = userId;
+    currentUserName = userName;
 
     try {
       socket = new WebSocket(url);
@@ -27,6 +29,7 @@ const CoordinationSocketService = (() => {
           type: "join",
           data: { message: "User joined the session" },
           userId: currentUserId,
+          userName: currentUserName,
         });
       };
 
@@ -55,7 +58,7 @@ const CoordinationSocketService = (() => {
             `Tentando reconectar (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`
           );
           setTimeout(
-            () => connect({ url, sessionId, userId, onMessage }),
+            () => connect({ url, sessionId, userId, userName, onMessage }),
             2000
           );
         }
@@ -72,6 +75,7 @@ const CoordinationSocketService = (() => {
         type,
         data,
         userId: currentUserId,
+        userName: currentUserName,
       };
       socket.send(JSON.stringify(message));
     } else {
@@ -87,6 +91,7 @@ const CoordinationSocketService = (() => {
       socket = null;
       currentSessionId = null;
       currentUserId = null;
+      currentUserName = null;
       reconnectAttempts = 0;
     }
   };
