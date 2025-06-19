@@ -11,7 +11,8 @@ import {
     Modal,
     message,
     Typography,
-    Input
+    Input,
+    Dropdown
 } from 'antd';
 import {
     EditOutlined,
@@ -23,10 +24,12 @@ import {
     BorderOutlined,
     ArrowLeftOutlined,
     ShareAltOutlined,
-    HighlightOutlined
+    HighlightOutlined,
+    DownloadOutlined
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fabric } from 'fabric';
+import { jsPDF } from 'jspdf';
 import socketService from '../../services/socketService';
 import './index.css';
 
@@ -40,6 +43,10 @@ const colors = [
     '#000000', '#ff0000', '#00ff00', '#0000ff',
     '#ffff00', '#00ffff', '#ff00ff', '#c0c0c0', '#808080'
 ];
+
+// Variáveis globais para indicadores/cursor
+const userIndicators = {};
+const userCursors = {};
 
 const Whiteboard = () => {
     const navigate = useNavigate();
@@ -55,9 +62,9 @@ const Whiteboard = () => {
     const [boardName, setBoardName] = useState(localStorage.getItem('whiteboardName') || 'Meu Board');
     const [isEditingName, setIsEditingName] = useState(false);
     const token = localStorage.getItem('token');
-    const urlSession = import.meta.env.VITE_URL_SESSION;
+    const urlCoordinator = import.meta.env.VITE_URL_SESSION;
     const [isEraser, setIsEraser] = useState(false);
-
+    
     const [connectedUsers] = useState([
         { id: 1, name: 'João Silva', avatar: 'J' },
         { id: 2, name: 'Maria Souza', avatar: 'M' },
@@ -78,6 +85,88 @@ const Whiteboard = () => {
         };
     }, []);
 
+    // Função para obter o nome do usuário do token
+    const getUserNameFromToken = () => {
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            return payload.name || payload.email || 'Usuário';
+        } catch {
+            return 'Usuário';
+        }
+    };
+
+    // Função para mostrar/atualizar indicador
+    function showUserIndicator(userId, userName, x, y) {
+        if (userIndicators[userId]) {
+            // Atualiza posição e reinicia timeout
+            userIndicators[userId].style.left = `${x}px`;
+            userIndicators[userId].style.top = `${y - 50}px`;
+            userIndicators[userId].classList.add('visible');
+            clearTimeout(userIndicators[userId].timeout);
+        } else {
+            const indicator = document.createElement('div');
+            indicator.className = 'user-drawing-indicator visible';
+            indicator.innerHTML = `
+                <span class="user-avatar">${userName.charAt(0).toUpperCase()}</span>
+                <span>${userName}</span>
+                <span class="drawing-status"></span>
+            `;
+            indicator.style.left = `${x}px`;
+            indicator.style.top = `${y - 50}px`;
+            document.querySelector('.board-container').appendChild(indicator);
+            userIndicators[userId] = indicator;
+        }
+        // Timeout para remover
+        userIndicators[userId].timeout = setTimeout(() => {
+            removeUserIndicator(userId);
+        }, 1200);
+    }
+
+    function removeUserIndicator(userId) {
+        if (userIndicators[userId]) {
+            userIndicators[userId].classList.remove('visible');
+            setTimeout(() => {
+                if (userIndicators[userId] && userIndicators[userId].parentNode) {
+                    userIndicators[userId].parentNode.removeChild(userIndicators[userId]);
+                }
+                delete userIndicators[userId];
+            }, 300);
+        }
+    }
+
+    // Função para mostrar/atualizar cursor
+    function showUserCursor(userId, x, y) {
+        if (userCursors[userId]) {
+            userCursors[userId].style.left = `${x}px`;
+            userCursors[userId].style.top = `${y}px`;
+            userCursors[userId].classList.add('visible');
+        } else {
+            const cursor = document.createElement('div');
+            cursor.className = 'drawing-cursor visible';
+            cursor.style.left = `${x}px`;
+            cursor.style.top = `${y}px`;
+            document.querySelector('.board-container').appendChild(cursor);
+            userCursors[userId] = cursor;
+        }
+        // Timeout para remover
+        if (userCursors[userId].timeout) clearTimeout(userCursors[userId].timeout);
+        userCursors[userId].timeout = setTimeout(() => {
+            removeUserCursor(userId);
+        }, 1200);
+    }
+
+    function removeUserCursor(userId) {
+        if (userCursors[userId]) {
+            userCursors[userId].classList.remove('visible');
+            setTimeout(() => {
+                if (userCursors[userId] && userCursors[userId].parentNode) {
+                    userCursors[userId].parentNode.removeChild(userCursors[userId]);
+                }
+                delete userCursors[userId];
+            }, 200);
+        }
+    }
+
     // Inicializa o canvas e carrega dados salvos
     useEffect(() => {
         const canvasElement = document.getElementById('canvas');
@@ -85,8 +174,8 @@ const Whiteboard = () => {
             isDrawingMode: true,
             backgroundColor: '#fff',
             renderOnAddRemove: true,
-            enableRetinaScaling: true,
-            selection: false // Desativa a seleção globalmente
+            enableRetinaScaling: false,
+            selection: false
         });
         canvasRef.current = canvas;
 
@@ -113,8 +202,19 @@ const Whiteboard = () => {
         // Ajusta o tamanho do canvas
         const resizeCanvas = () => {
             const container = document.querySelector('.board-container');
-            canvas.setWidth(container.offsetWidth);
-            canvas.setHeight(container.offsetHeight);
+            const width = container.offsetWidth;
+            const height = container.offsetHeight;
+            
+            // Define o tamanho do canvas
+            canvas.setWidth(width);
+            canvas.setHeight(height);
+            
+            // Ajusta a escala para 1:1
+            canvas.setZoom(1);
+            
+            // Centraliza o canvas
+            canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+            
             canvas.renderAll();
         };
 
@@ -122,21 +222,29 @@ const Whiteboard = () => {
         window.addEventListener('resize', resizeCanvas);
 
         // Conecta ao WebSocket
+        const userId = JSON.parse(atob(token.split('.')[1])).userId;
+        const userName = getUserNameFromToken();
+        
         socketService.connect({
-            url: `${urlSession}/?token=${token}`,
-
+            url: `${urlCoordinator}?token=${token}`,
             sessionId,
+            userId,
+            userName,
             onMessage: (data) => {
                 try {
                     const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-                    let x1, y1, x2, y2, lineColor, width, objectId, objectToRemove, line;
 
-                    switch (parsed.type) {
-                        case 'draw':
-                            ({ x1, y1, x2, y2, color: lineColor, width } = parsed.data);
-                            
-                            // Cria uma nova linha usando fabric.js
-                            line = new fabric.Line([x1, y1, x2, y2], {
+                    if (!parsed || !parsed.type || !parsed.data) {
+                        console.warn('Mensagem recebida com formato inválido:', data);
+                        return;
+                    }
+
+                    const { type, data: eventData, userId: senderUserId, userName: senderUserName } = parsed;
+
+                    switch (type) {
+                        case 'draw': {
+                            const { x1, y1, x2, y2, color: lineColor, width } = eventData;
+                            const line = new fabric.Line([x1, y1, x2, y2], {
                                 stroke: lineColor || color,
                                 strokeWidth: width || brushWidth,
                                 selectable: false,
@@ -144,29 +252,19 @@ const Whiteboard = () => {
                                 strokeLineCap: 'round',
                                 strokeLineJoin: 'round'
                             });
-
                             canvas.add(line);
-                            canvas.getObjects().forEach(obj => {
-                                obj.selectable = false;
-                                obj.evented = false;
-                            });
-                            canvas.discardActiveObject();
                             canvas.renderAll();
-                            break;
-
-                        case 'erase':
-                            ({ objectId } = parsed.data);
-                            objectToRemove = canvas.getObjects().find(obj => obj.id === objectId);
-                            if (objectToRemove) {
-                                canvas.remove(objectToRemove);
-                                canvas.getObjects().forEach(obj => {
-                                    obj.selectable = false;
-                                    obj.evented = false;
-                                });
-                                canvas.discardActiveObject();
-                                canvas.renderAll();
+                            
+                            // Atualizar indicadores de usuário
+                            if (senderUserId && senderUserId !== userId) {
+                                // Criar ou atualizar cursor
+                                showUserCursor(senderUserId, x2, y2);
+                                
+                                // Criar ou atualizar indicador
+                                showUserIndicator(senderUserId, senderUserName || 'Usuário', x2, y2);
                             }
                             break;
+                        }
 
                         case 'clear':
                             canvas.clear();
@@ -193,14 +291,14 @@ const Whiteboard = () => {
                             break;
 
                         case 'error':
-                            message.error(parsed.data.message);
+                            message.error(eventData.message);
                             break;
 
                         default:
-                            console.warn('Tipo de mensagem desconhecido:', parsed.type);
+                            console.warn('Tipo de mensagem desconhecido:', type);
                     }
                 } catch (e) {
-                    console.error('Erro ao processar mensagem recebida:', e.message);
+                    console.error('Erro ao processar mensagem recebida:', e);
                 }
             },
         });
@@ -209,6 +307,10 @@ const Whiteboard = () => {
             window.removeEventListener('resize', resizeCanvas);
             canvas.dispose();
             socketService.disconnect();
+            
+            // Limpar todos os indicadores
+            Object.keys(userIndicators).forEach(removeUserIndicator);
+            Object.keys(userCursors).forEach(removeUserCursor);
         };
     }, [sessionId, token]);
 
@@ -218,9 +320,10 @@ const Whiteboard = () => {
             const handleMouseDown = (options) => {
                 if (isEraser) {
                     isDrawing.current = true;
+                    const pointer = canvasRef.current.getPointer(options.e);
                     lastPosition.current = { 
-                        x: options.e.offsetX, 
-                        y: options.e.offsetY 
+                        x: pointer.x, 
+                        y: pointer.y 
                     };
                 }
             };
@@ -228,83 +331,28 @@ const Whiteboard = () => {
             const handleMouseMove = (options) => {
                 if (isEraser && isDrawing.current) {
                     const pointer = canvasRef.current.getPointer(options.e);
-                    const objects = canvasRef.current.getObjects();
-                    const eraserRadius = brushWidth * 2;
+                    const currentPosition = { x: pointer.x, y: pointer.y };
                     
-                    // Procura por objetos dentro do raio da borracha
-                    const objectsToRemove = objects.filter(obj => {
-                        if (obj.type === 'line') {
-                            const distance = distanceToLine(pointer.x, pointer.y, obj.x1, obj.y1, obj.x2, obj.y2);
-                            return distance < eraserRadius;
+                    // Envia o evento de draw com cor branca (apagar)
+                    socketService.sendMessage({
+                        sessionId,
+                        type: 'draw',
+                        data: {
+                            x1: lastPosition.current.x,
+                            y1: lastPosition.current.y,
+                            x2: currentPosition.x,
+                            y2: currentPosition.y,
+                            color: '#ffffff', // Cor branca para "apagar"
+                            width: brushWidth * 2 // Largura maior para a borracha
                         }
-                        return false;
                     });
 
-                    // Remove todos os objetos encontrados
-                    objectsToRemove.forEach(obj => {
-                        canvasRef.current.remove(obj);
-                        canvasRef.current.getObjects().forEach(o => {
-                            o.selectable = false;
-                            o.evented = false;
-                        });
-                        socketService.sendMessage({
-                            sessionId,
-                            type: 'erase',
-                            data: {
-                                objectId: obj.id || Date.now().toString()
-                            }
-                        });
-                    });
-
-                    if (objectsToRemove.length > 0) {
-                        canvasRef.current.getObjects().forEach(o => {
-                            o.selectable = false;
-                            o.evented = false;
-                        });
-                        canvasRef.current.discardActiveObject();
-                        canvasRef.current.renderAll();
-                    }
-
-                    lastPosition.current = { x: pointer.x, y: pointer.y };
+                    lastPosition.current = currentPosition;
                 }
             };
 
             const handleMouseUp = () => {
                 isDrawing.current = false;
-            };
-
-            // Função auxiliar para calcular a distância de um ponto a uma linha
-            const distanceToLine = (x, y, x1, y1, x2, y2) => {
-                const A = x - x1;
-                const B = y - y1;
-                const C = x2 - x1;
-                const D = y2 - y1;
-
-                const dot = A * C + B * D;
-                const len_sq = C * C + D * D;
-                let param = -1;
-
-                if (len_sq !== 0) {
-                    param = dot / len_sq;
-                }
-
-                let xx, yy;
-
-                if (param < 0) {
-                    xx = x1;
-                    yy = y1;
-                } else if (param > 1) {
-                    xx = x2;
-                    yy = y2;
-                } else {
-                    xx = x1 + param * C;
-                    yy = y1 + param * D;
-                }
-
-                const dx = x - xx;
-                const dy = y - yy;
-
-                return Math.sqrt(dx * dx + dy * dy);
             };
 
             // Adiciona um indicador visual da borracha
@@ -363,54 +411,35 @@ const Whiteboard = () => {
             const handleMouseDown = (options) => {
                 if (!isEraser) {
                     isDrawing.current = true;
+                    const pointer = canvasRef.current.getPointer(options.e);
                     lastPosition.current = { 
-                        x: options.e.offsetX, 
-                        y: options.e.offsetY 
+                        x: pointer.x, 
+                        y: pointer.y 
                     };
                 }
             };
 
             const handleMouseMove = (options) => {
                 if (isDrawing.current && !isEraser) {
+                    const pointer = canvasRef.current.getPointer(options.e);
                     const currentPosition = { 
-                        x: options.e.offsetX, 
-                        y: options.e.offsetY 
+                        x: pointer.x, 
+                        y: pointer.y 
                     };
 
-                    // Cria uma linha temporária
-                    const line = new fabric.Line([
-                        lastPosition.current.x,
-                        lastPosition.current.y,
-                        currentPosition.x,
-                        currentPosition.y
-                    ], {
-                        stroke: color,
-                        strokeWidth: brushWidth,
-                        selectable: false,
-                        evented: false
-                    });
-
-                    canvasRef.current.add(line);
-                    canvasRef.current.getObjects().forEach(o => {
-                        o.selectable = false;
-                        o.evented = false;
-                    });
-                    canvasRef.current.discardActiveObject();
-                    canvasRef.current.renderAll();
-
-                    const drawingData = {
-                        x1: lastPosition.current.x,
-                        y1: lastPosition.current.y,
-                        x2: currentPosition.x,
-                        y2: currentPosition.y,
-                        color: color,
-                        width: brushWidth
-                    };
-
+                    // NÃO desenhe localmente aqui!
+                    // Apenas envie o evento para o servidor
                     socketService.sendMessage({
                         sessionId,
                         type: 'draw',
-                        data: drawingData,
+                        data: {
+                            x1: lastPosition.current.x,
+                            y1: lastPosition.current.y,
+                            x2: currentPosition.x,
+                            y2: currentPosition.y,
+                            color: color,
+                            width: brushWidth
+                        }
                     });
 
                     lastPosition.current = currentPosition;
@@ -536,91 +565,77 @@ const Whiteboard = () => {
         }
     };
 
+    const exportAsImage = async (format = 'png') => {
+        try {
+            const canvas = document.getElementById('canvas');
+            if (!canvas) {
+                messageApi.error('Canvas não encontrado');
+                return;
+            }
+
+            const dataURL = canvas.toDataURL(`image/${format}`);
+            const link = document.createElement('a');
+            link.download = `whiteboard-${boardName}-${new Date().toISOString().slice(0, 10)}.${format}`;
+            link.href = dataURL;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            messageApi.success(`Quadro exportado como ${format.toUpperCase()} com sucesso!`);
+        } catch (error) {
+            console.error('Erro ao exportar imagem:', error);
+            messageApi.error('Erro ao exportar imagem');
+        }
+    };
+
+    const exportAsPDF = async () => {
+        try {
+            const canvas = document.getElementById('canvas');
+            if (!canvas) {
+                messageApi.error('Canvas não encontrado');
+                return;
+            }
+
+            // Captura o canvas como imagem
+            const dataURL = canvas.toDataURL('image/png');
+            
+            // Cria o PDF
+            const pdf = new jsPDF('landscape', 'mm', 'a4');
+            const imgWidth = 297; // A4 width in mm
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            
+            pdf.addImage(dataURL, 'PNG', 0, 0, imgWidth, imgHeight);
+            pdf.save(`whiteboard-${boardName}-${new Date().toISOString().slice(0, 10)}.pdf`);
+
+            messageApi.success('Quadro exportado como PDF com sucesso!');
+        } catch (error) {
+            console.error('Erro ao exportar PDF:', error);
+            messageApi.error('Erro ao exportar PDF');
+        }
+    };
+
+    const handleExport = ({ key }) => {
+        switch (key) {
+            case 'png':
+                exportAsImage('png');
+                break;
+            case 'jpg':
+                exportAsImage('jpeg');
+                break;
+            case 'pdf':
+                exportAsPDF();
+                break;
+            default:
+                break;
+        }
+    };
+
     const handleSaveName = () => {
         localStorage.setItem('whiteboardName', boardName);
         localStorage.setItem('whiteboardLastModified', new Date().toISOString());
         setIsEditingName(false);
         messageApi.success('Nome do board atualizado!');
     };
-
-    const handleUndo = () => {
-        if (canvasRef.current && canvasRef.current._objects.length > 0) {
-            const removedObject = canvasRef.current._objects.pop();
-            canvasRef.current.remove(removedObject);
-            canvasRef.current.getObjects().forEach(o => {
-                o.selectable = false;
-                o.evented = false;
-            });
-            canvasRef.current.discardActiveObject();
-            canvasRef.current.renderAll();
-
-            socketService.sendMessage({
-                sessionId,
-                type: 'undo',
-                data: {
-                    objectId: removedObject.id || Date.now().toString()
-                }
-            });
-        }
-    };
-
-    // const addShape = (type) => {
-    //     if (!canvasRef.current) return;
-
-    //     setMode('select');
-    //     let shape;
-    //     const left = 100;
-    //     const top = 100;
-    //     const width = 100;
-    //     const height = 100;
-
-    //     switch (type) {
-    //         case 'line':
-    //             shape = new fabric.Line([left, top, left + width, top], {
-    //                 stroke: color,
-    //                 strokeWidth: brushWidth,
-    //                 selectable: true,
-    //                 strokeLineCap: 'round',
-    //                 strokeLineJoin: 'round'
-    //             });
-    //             break;
-    //         case 'rect':
-    //             shape = new fabric.Rect({
-    //                 left: left,
-    //                 top: top,
-    //                 width: width,
-    //                 height: height,
-    //                 fill: 'transparent',
-    //                 stroke: color,
-    //                 strokeWidth: brushWidth,
-    //                 selectable: true
-    //             });
-    //             break;
-    //         default:
-    //             return;
-    //     }
-
-    //     canvasRef.current.add(shape);
-    //     canvasRef.current.setActiveObject(shape);
-    //     canvasRef.current.renderAll();
-
-    //     // Envia a forma para outros usuários
-    //     socketService.sendMessage({
-    //         sessionId,
-    //         data: {
-    //             type: 'shape',
-    //             payload: {
-    //                 shapeType: type,
-    //                 left: left,
-    //                 top: top,
-    //                 width: width,
-    //                 height: height,
-    //                 color: color,
-    //                 strokeWidth: brushWidth
-    //             }
-    //         }
-    //     });
-    // };
 
     return (
         <div className="app-container">
@@ -666,23 +681,69 @@ const Whiteboard = () => {
                         </Col>
 
                         <Col>
+                            <Tooltip title="Salvar">
+                                <Button
+                                    type="primary"
+                                    icon={<SaveOutlined />}
+                                    onClick={handleSave}
+                                    className="save-button"
+                                />
+                            </Tooltip>
+                        </Col>
+
+                        <Col>
+                            <Divider type="vertical" className="tool-divider" />
+                        </Col>
+
+                        <Col>
+                            <Dropdown
+                                menu={{
+                                    items: [
+                                        {
+                                            key: 'png',
+                                            label: 'Exportar como PNG',
+                                            icon: <DownloadOutlined />
+                                        },
+                                        {
+                                            key: 'jpg',
+                                            label: 'Exportar como JPG',
+                                            icon: <DownloadOutlined />
+                                        },
+                                        {
+                                            key: 'pdf',
+                                            label: 'Exportar como PDF',
+                                            icon: <DownloadOutlined />
+                                        }
+                                    ],
+                                    onClick: handleExport,
+                                    className: 'export-dropdown-menu'
+                                }}
+                                placement="bottomRight"
+                                overlayStyle={{
+                                    backgroundColor: 'rgba(20, 20, 20, 0.95)',
+                                    backdropFilter: 'blur(10px)',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '8px',
+                                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+                                }}
+                            >
+                                <Tooltip title="Exportar">
+                                    <Button
+                                        type="primary"
+                                        icon={<DownloadOutlined />}
+                                        className="tool-button"
+                                    />
+                                </Tooltip>
+                            </Dropdown>
+                        </Col>
+
+                        <Col>
                             <Tooltip title="Usuários">
                                 <Button
                                     type={showSidebar ? 'primary' : 'text'}
                                     icon={<UserOutlined />}
                                     onClick={() => setShowSidebar(!showSidebar)}
                                     className="sidebar-toggle"
-                                />
-                            </Tooltip>
-                        </Col>
-
-                        <Col>
-                            <Tooltip title="Desfazer">
-                                <Button
-                                    type="text"
-                                    icon={<UndoOutlined />}
-                                    onClick={handleUndo}
-                                    className="tool-button"
                                 />
                             </Tooltip>
                         </Col>
@@ -710,17 +771,7 @@ const Whiteboard = () => {
                                 />
                             </Tooltip>
                         </Col>
-
-                        <Col>
-                            <Tooltip title="Salvar">
-                                <Button
-                                    type="primary"
-                                    icon={<SaveOutlined />}
-                                    onClick={handleSave}
-                                    className="save-button"
-                                />
-                            </Tooltip>
-                        </Col>
+                        
                     </Row>
 
                     <div className="tool-options">
@@ -764,27 +815,16 @@ const Whiteboard = () => {
                             </Tooltip>
                         </Col>
 
-                        {/* <Col>
-                            <Tooltip title="Linha">
-                                <Button
-                                    type="text"
-                                    icon={<LineOutlined />}
-                                    onClick={() => addShape('line')}
-                                    className="tool-button"
-                                />
-                            </Tooltip>
-                        </Col> */}
-
-                        {/* <Col>
-                            <Tooltip title="Retângulo">
-                                <Button
-                                    type="text"
-                                    icon={<BorderOutlined />}
-                                    onClick={() => addShape('rect')}
-                                    className="tool-button"
-                                />
-                            </Tooltip>
-                        </Col> */}
+                        <Col>
+                            <Slider
+                                min={1}
+                                max={20}
+                                value={brushWidth}
+                                onChange={setBrushWidth}
+                                className="brush-slider"
+                                tooltip={{ formatter: value => `${value}px` }}
+                            />
+                        </Col>
 
                         <Col>
                             <Divider type="vertical" className="tool-divider" />
@@ -804,14 +844,7 @@ const Whiteboard = () => {
                             ))}
                         </div>
 
-                        <Slider
-                            min={1}
-                            max={20}
-                            value={brushWidth}
-                            onChange={setBrushWidth}
-                            className="brush-slider"
-                            tooltip={{ formatter: value => `${value}px` }}
-                        />
+
                     </div>
                 </div>
 
