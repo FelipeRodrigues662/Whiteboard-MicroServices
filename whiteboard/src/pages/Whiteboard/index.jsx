@@ -11,7 +11,8 @@ import {
     Modal,
     message,
     Typography,
-    Input
+    Input,
+    Dropdown
 } from 'antd';
 import {
     EditOutlined,
@@ -23,10 +24,12 @@ import {
     BorderOutlined,
     ArrowLeftOutlined,
     ShareAltOutlined,
-    HighlightOutlined
+    HighlightOutlined,
+    DownloadOutlined
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fabric } from 'fabric';
+import { jsPDF } from 'jspdf';
 import socketService from '../../services/socketService';
 import './index.css';
 
@@ -63,40 +66,6 @@ const Whiteboard = () => {
         { id: 2, name: 'Maria Souza', avatar: 'M' },
         { id: 3, name: 'Carlos Oliveira', avatar: 'C' },
     ]);
-
-    // Função auxiliar para calcular a distância de um ponto a uma linha
-    const distanceToLine = (x, y, x1, y1, x2, y2) => {
-        const A = x - x1;
-        const B = y - y1;
-        const C = x2 - x1;
-        const D = y2 - y1;
-
-        const dot = A * C + B * D;
-        const len_sq = C * C + D * D;
-        let param = -1;
-
-        if (len_sq !== 0) {
-            param = dot / len_sq;
-        }
-
-        let xx, yy;
-
-        if (param < 0) {
-            xx = x1;
-            yy = y1;
-        } else if (param > 1) {
-            xx = x2;
-            yy = y2;
-        } else {
-            xx = x1 + param * C;
-            yy = y1 + param * D;
-        }
-
-        const dx = x - xx;
-        const dy = y - yy;
-
-        return Math.sqrt(dx * dx + dy * dy);
-    };
 
     // Configura o aviso antes de recarregar
     useEffect(() => {
@@ -202,35 +171,6 @@ const Whiteboard = () => {
                             break;
                         }
 
-                        case 'erase': {
-                            const { x1, y1, x2, y2, width: eraserWidth } = eventData;
-                            
-                            // Procura e remove linhas próximas ao segmento da borracha
-                            const objectsToRemove = canvas.getObjects().filter(obj => {
-                                if (obj.type === 'line') {
-                                    // Calcula a distância entre a linha e o segmento da borracha
-                                    const distance = distanceToLine(
-                                        obj.x1, obj.y1,
-                                        x1, y1,
-                                        x2, y2
-                                    );
-                                    
-                                    // Se a distância for menor que o raio da borracha, remove a linha
-                                    return distance < eraserWidth;
-                                }
-                                return false;
-                            });
-
-                            objectsToRemove.forEach(obj => {
-                                canvas.remove(obj);
-                            });
-                            
-                            if (objectsToRemove.length > 0) {
-                                canvas.renderAll();
-                            }
-                            break;
-                        }
-
                         case 'clear':
                             canvas.clear();
                             canvas.backgroundColor = '#fff';
@@ -281,9 +221,10 @@ const Whiteboard = () => {
             const handleMouseDown = (options) => {
                 if (isEraser) {
                     isDrawing.current = true;
+                    const pointer = canvasRef.current.getPointer(options.e);
                     lastPosition.current = { 
-                        x: options.e.offsetX, 
-                        y: options.e.offsetY 
+                        x: pointer.x, 
+                        y: pointer.y 
                     };
                 }
             };
@@ -293,45 +234,19 @@ const Whiteboard = () => {
                     const pointer = canvasRef.current.getPointer(options.e);
                     const currentPosition = { x: pointer.x, y: pointer.y };
                     
-                    // Envia o evento de erase com o segmento da borracha
+                    // Envia o evento de draw com cor branca (apagar)
                     socketService.sendMessage({
                         sessionId,
-                        type: 'erase',
+                        type: 'draw',
                         data: {
                             x1: lastPosition.current.x,
                             y1: lastPosition.current.y,
                             x2: currentPosition.x,
                             y2: currentPosition.y,
-                            width: brushWidth * 2 // Raio da borracha
+                            color: '#ffffff', // Cor branca para "apagar"
+                            width: brushWidth * 2 // Largura maior para a borracha
                         }
                     });
-
-                    // Remove objetos localmente
-                    const objects = canvasRef.current.getObjects();
-                    const eraserRadius = brushWidth * 2;
-                    
-                    // Procura por objetos dentro do raio da borracha
-                    const objectsToRemove = objects.filter(obj => {
-                        if (obj.type === 'line') {
-                            // Calcula a distância entre a linha e o segmento da borracha
-                            const distance = distanceToLine(
-                                obj.x1, obj.y1,
-                                lastPosition.current.x, lastPosition.current.y,
-                                currentPosition.x, currentPosition.y
-                            );
-                            return distance < eraserRadius;
-                        }
-                        return false;
-                    });
-
-                    // Remove os objetos encontrados
-                    objectsToRemove.forEach(obj => {
-                        canvasRef.current.remove(obj);
-                    });
-
-                    if (objectsToRemove.length > 0) {
-                        canvasRef.current.renderAll();
-                    }
 
                     lastPosition.current = currentPosition;
                 }
@@ -551,6 +466,71 @@ const Whiteboard = () => {
         }
     };
 
+    const exportAsImage = async (format = 'png') => {
+        try {
+            const canvas = document.getElementById('canvas');
+            if (!canvas) {
+                messageApi.error('Canvas não encontrado');
+                return;
+            }
+
+            const dataURL = canvas.toDataURL(`image/${format}`);
+            const link = document.createElement('a');
+            link.download = `whiteboard-${boardName}-${new Date().toISOString().slice(0, 10)}.${format}`;
+            link.href = dataURL;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            messageApi.success(`Quadro exportado como ${format.toUpperCase()} com sucesso!`);
+        } catch (error) {
+            console.error('Erro ao exportar imagem:', error);
+            messageApi.error('Erro ao exportar imagem');
+        }
+    };
+
+    const exportAsPDF = async () => {
+        try {
+            const canvas = document.getElementById('canvas');
+            if (!canvas) {
+                messageApi.error('Canvas não encontrado');
+                return;
+            }
+
+            // Captura o canvas como imagem
+            const dataURL = canvas.toDataURL('image/png');
+            
+            // Cria o PDF
+            const pdf = new jsPDF('landscape', 'mm', 'a4');
+            const imgWidth = 297; // A4 width in mm
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            
+            pdf.addImage(dataURL, 'PNG', 0, 0, imgWidth, imgHeight);
+            pdf.save(`whiteboard-${boardName}-${new Date().toISOString().slice(0, 10)}.pdf`);
+
+            messageApi.success('Quadro exportado como PDF com sucesso!');
+        } catch (error) {
+            console.error('Erro ao exportar PDF:', error);
+            messageApi.error('Erro ao exportar PDF');
+        }
+    };
+
+    const handleExport = ({ key }) => {
+        switch (key) {
+            case 'png':
+                exportAsImage('png');
+                break;
+            case 'jpg':
+                exportAsImage('jpeg');
+                break;
+            case 'pdf':
+                exportAsPDF();
+                break;
+            default:
+                break;
+        }
+    };
+
     const handleSaveName = () => {
         localStorage.setItem('whiteboardName', boardName);
         localStorage.setItem('whiteboardLastModified', new Date().toISOString());
@@ -558,26 +538,26 @@ const Whiteboard = () => {
         messageApi.success('Nome do board atualizado!');
     };
 
-    const handleUndo = () => {
-        if (canvasRef.current && canvasRef.current._objects.length > 0) {
-            const removedObject = canvasRef.current._objects.pop();
-            canvasRef.current.remove(removedObject);
-            canvasRef.current.getObjects().forEach(o => {
-                o.selectable = false;
-                o.evented = false;
-            });
-            canvasRef.current.discardActiveObject();
-            canvasRef.current.renderAll();
+    // const handleUndo = () => {
+    //     if (canvasRef.current && canvasRef.current._objects.length > 0) {
+    //         const removedObject = canvasRef.current._objects.pop();
+    //         canvasRef.current.remove(removedObject);
+    //         canvasRef.current.getObjects().forEach(o => {
+    //             o.selectable = false;
+    //             o.evented = false;
+    //         });
+    //         canvasRef.current.discardActiveObject();
+    //         canvasRef.current.renderAll();
 
-            socketService.sendMessage({
-                sessionId,
-                type: 'undo',
-                data: {
-                    objectId: removedObject.id || Date.now().toString()
-                }
-            });
-        }
-    };
+    //         socketService.sendMessage({
+    //             sessionId,
+    //             type: 'undo',
+    //             data: {
+    //                 objectId: removedObject.id || Date.now().toString()
+    //             }
+    //         });
+    //     }
+    // };
 
     // const addShape = (type) => {
     //     if (!canvasRef.current) return;
@@ -681,6 +661,63 @@ const Whiteboard = () => {
                         </Col>
 
                         <Col>
+                            <Tooltip title="Salvar">
+                                <Button
+                                    type="primary"
+                                    icon={<SaveOutlined />}
+                                    onClick={handleSave}
+                                    className="save-button"
+                                />
+                            </Tooltip>
+                        </Col>
+
+                        <Col>
+                            <Divider type="vertical" className="tool-divider" />
+                        </Col>
+
+                        <Col>
+                            <Dropdown
+                                menu={{
+                                    items: [
+                                        {
+                                            key: 'png',
+                                            label: 'Exportar como PNG',
+                                            icon: <DownloadOutlined />
+                                        },
+                                        {
+                                            key: 'jpg',
+                                            label: 'Exportar como JPG',
+                                            icon: <DownloadOutlined />
+                                        },
+                                        {
+                                            key: 'pdf',
+                                            label: 'Exportar como PDF',
+                                            icon: <DownloadOutlined />
+                                        }
+                                    ],
+                                    onClick: handleExport,
+                                    className: 'export-dropdown-menu'
+                                }}
+                                placement="bottomRight"
+                                overlayStyle={{
+                                    backgroundColor: 'rgba(20, 20, 20, 0.95)',
+                                    backdropFilter: 'blur(10px)',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '8px',
+                                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+                                }}
+                            >
+                                <Tooltip title="Exportar">
+                                    <Button
+                                        type="primary"
+                                        icon={<DownloadOutlined />}
+                                        className="tool-button"
+                                    />
+                                </Tooltip>
+                            </Dropdown>
+                        </Col>
+
+                        <Col>
                             <Tooltip title="Usuários">
                                 <Button
                                     type={showSidebar ? 'primary' : 'text'}
@@ -691,7 +728,7 @@ const Whiteboard = () => {
                             </Tooltip>
                         </Col>
 
-                        <Col>
+                        {/* <Col>
                             <Tooltip title="Desfazer">
                                 <Button
                                     type="text"
@@ -700,7 +737,7 @@ const Whiteboard = () => {
                                     className="tool-button"
                                 />
                             </Tooltip>
-                        </Col>
+                        </Col> */}
 
                         <Col>
                             <Tooltip title="Limpar">
@@ -725,17 +762,7 @@ const Whiteboard = () => {
                                 />
                             </Tooltip>
                         </Col>
-
-                        <Col>
-                            <Tooltip title="Salvar">
-                                <Button
-                                    type="primary"
-                                    icon={<SaveOutlined />}
-                                    onClick={handleSave}
-                                    className="save-button"
-                                />
-                            </Tooltip>
-                        </Col>
+                        
                     </Row>
 
                     <div className="tool-options">
@@ -800,6 +827,16 @@ const Whiteboard = () => {
                                 />
                             </Tooltip>
                         </Col> */}
+                        <Col>
+                            <Slider
+                                min={1}
+                                max={20}
+                                value={brushWidth}
+                                onChange={setBrushWidth}
+                                className="brush-slider"
+                                tooltip={{ formatter: value => `${value}px` }}
+                            />
+                        </Col>
 
                         <Col>
                             <Divider type="vertical" className="tool-divider" />
@@ -819,14 +856,7 @@ const Whiteboard = () => {
                             ))}
                         </div>
 
-                        <Slider
-                            min={1}
-                            max={20}
-                            value={brushWidth}
-                            onChange={setBrushWidth}
-                            className="brush-slider"
-                            tooltip={{ formatter: value => `${value}px` }}
-                        />
+
                     </div>
                 </div>
 

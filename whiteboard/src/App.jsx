@@ -12,7 +12,14 @@ const App = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Welcome />} />
+        <Route 
+          path="/" 
+          element={
+            <PublicRoute>
+              <Welcome />
+            </PublicRoute>
+          } 
+        />
         <Route 
           path="/login" 
           element={
