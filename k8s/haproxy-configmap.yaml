@@ -20,7 +20,6 @@ data:
       default_backend galera-cluster
 
     backend galera-cluster
-      option mysql-check user root
       balance roundrobin
       server galera1 mariadb-galera-0.mariadb-galera:3306 check
       server galera2 mariadb-galera-1.mariadb-galera:3306 check

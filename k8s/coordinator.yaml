@@ -22,6 +22,10 @@ spec:
           value: redis
         - name: RABBITMQ_HOST
           value: rabbitmq
+        - name: RABBITMQ_USER
+          value: user
+        - name: RABBITMQ_PASSWORD
+          value: pass
         - name: JWT_SECRET
           value: segredo123
         - name: CORE_WS_URL
