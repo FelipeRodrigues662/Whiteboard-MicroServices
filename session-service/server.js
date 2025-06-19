@@ -10,7 +10,7 @@ const app = express();
 const PORT = 4010;
 app.use(cors());
 app.use(express.json());
-sequelize.sync({ force : true });
+sequelize.sync({ alter : true });
 
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 

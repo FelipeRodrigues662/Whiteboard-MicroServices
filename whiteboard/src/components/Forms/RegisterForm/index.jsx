@@ -12,13 +12,13 @@ const LoginForm = ({ messageApi }) => {
     const [password, setPassword] = useState('');
     const navigate = useNavigate();
     const [form] = Form.useForm();
-    const urlEndpoint = import.meta.env.VITE_URL_AUTH;
+    const url = import.meta.env.VITE_URL_AUTH + '/api/auth/register';
 
     const handleRegister = async (values) => {
         console.log(values);
     
         try {
-            const response = await fetch(`${urlEndpoint}/api/auth/register`, {
+            const response = await fetch(url, {
 
             method: 'POST',
             headers: {

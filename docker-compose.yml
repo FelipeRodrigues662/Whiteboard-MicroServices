@@ -47,13 +47,14 @@ services:
       context: ./coordinator
     ports:
       - "4000:4000"
-    depends_on:
-      - rabbitmq
-      - redis
     environment:
       - REDIS_HOST=redis
       - RABBITMQ_HOST=rabbitmq
       - JWT_SECRET=segredo123
+      - CORE_WS_URL=ws://whiteboard-core:4040
+    depends_on:
+      - rabbitmq
+      - redis
     networks:
       - whiteboard-network
 
@@ -105,6 +106,19 @@ services:
     environment:
       - PORT=4040
       - MONGODB_URI=mongodb+srv://admin:PQIKWqeWAxMSrtem@clusterwhiteboard.dbqvhl5.mongodb.net/?retryWrites=true&w=majority&appName=ClusterWhiteboard&tls=true&ssl=true
+    networks:
+      - whiteboard-network
+
+  # ---------- SERVIÇOS FRONTEND ----------
+  whiteboard-frontend:
+    build:
+      context: ./whiteboard
+      args:
+        VITE_URL_AUTH: http://localhost:4020
+        VITE_URL_ENDPOINTS: http://localhost:4010
+        VITE_URL_SESSION: ws://localhost:4000
+    ports:
+      - "3000:80"
     networks:
       - whiteboard-network
 

@@ -10,7 +10,6 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-sequelize.sync({ alter : true });
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 

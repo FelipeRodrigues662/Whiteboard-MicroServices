@@ -13,7 +13,7 @@ const LoginForm = ({ messageApi }) => {
     const [error, setError] = useState(null);  // Estado para erros
     const [form] = Form.useForm();
     const navigate = useNavigate();
-    const urlEndpoint = import.meta.env.VITE_URL_AUTH;
+    const url = import.meta.env.VITE_URL_AUTH + '/api/auth/login';
     
 
     const handleLogin = async (values) => {
@@ -25,7 +25,7 @@ const LoginForm = ({ messageApi }) => {
         }
     
         try {
-            const response = await axios.post(`${urlEndpoint}/api/auth/login`, {
+            const response = await axios.post(url, {
 
                 email: values.email,
                 password: values.password,
