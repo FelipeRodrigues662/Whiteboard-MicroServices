@@ -34,6 +34,7 @@ const handleWebSocket = (server, channel) => {
     }
 
     ws.userId = user.id; // Salva o userId na conexão
+    ws.userName = user.name || user.email || "Usuário"; // Salva o nome do usuário
 
     let sessionId = null;
 
@@ -103,6 +104,7 @@ const handleWebSocket = (server, channel) => {
           type,
           data,
           userId: user.id,
+          userName: ws.userName,
         };
 
         console.log(
@@ -175,13 +177,13 @@ const handleWebSocket = (server, channel) => {
     if (msg) {
       try {
         const event = JSON.parse(msg.content.toString());
-        const { sessionId, type, data, userId } = event;
+        const { sessionId, type, data, userId, userName } = event;
 
         if (clients.has(sessionId)) {
           clients.get(sessionId).forEach((ws) => {
             // Não envia para o remetente original
             if (ws.readyState === WebSocket.OPEN && ws.userId !== userId) {
-              ws.send(JSON.stringify({ type, data, userId }));
+              ws.send(JSON.stringify({ type, data, userId, userName }));
             }
           });
         }
