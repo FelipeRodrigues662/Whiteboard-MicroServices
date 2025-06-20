@@ -1,9 +1,3 @@
-docker tag session-service:latest feliperodrigues662/session-service:latest
-docker tag coordinator:latest feliperodrigues662/coordinator:latest
-
-docker push feliperodrigues662/session-service:latest
-docker push feliperodrigues662/coordinator:latest
-
 # 🎨 Whiteboard - Microserviços com Kubernetes
 
 Sistema de quadro branco colaborativo em tempo real construído com microserviços e deployado no Kubernetes.
@@ -47,33 +41,20 @@ chmod +x build-k8s.sh
 
 ```bash
 # Aplicar todos os recursos do Kubernetes
-kubectl apply -f k8s/
+./KubInit.sh
 
 # Verificar se os pods estão rodando
 kubectl get pods
 ```
 
-### 4. **Aguardar Inicialização dos Serviços**
-
-```bash
-# Aguardar MariaDB Galera (pode demorar alguns minutos)
-kubectl wait --for=condition=ready pod -l app=mariadb-galera --timeout=300s
-
-# Aguardar outros serviços
-kubectl wait --for=condition=ready pod -l app=authentication --timeout=120s
-kubectl wait --for=condition=ready pod -l app=session-service --timeout=120s
-kubectl wait --for=condition=ready pod -l app=coordinator --timeout=120s
-kubectl wait --for=condition=ready pod -l app=whiteboard-frontend --timeout=120s
-```
-
-### 5. **Iniciar Minikube Tunnel**
+### 4. **Iniciar Minikube Tunnel**
 
 ```bash
 # Em um terminal separado (manter aberto)
 minikube tunnel
 ```
 
-### 6. **Acessar a Aplicação**
+### 5. **Acessar a Aplicação**
 
 ```bash
 # Em outro terminal
@@ -274,9 +255,7 @@ Whiteboard-MicroServices/
 4. Configurar backup automático do banco
 5. Implementar CI/CD
 
----
 
-**Desenvolvido com ❤️ usando React, Node.js, MariaDB Galera e Kubernetes**
 
 
 
