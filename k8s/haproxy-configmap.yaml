@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: haproxy-mariadb-config
+  labels:
+    app: haproxy-mariadb
+data:
+  haproxy.cfg: |
+    global
+      maxconn 4096
+
+    defaults
+      mode tcp
+      timeout connect 10s
+      timeout client 1m
+      timeout server 1m
+
+    frontend mysql
+      bind *:3306
+      default_backend galera-cluster
+
+    backend galera-cluster
+      balance roundrobin
+      server galera1 mariadb-galera-0.mariadb-galera:3306 check
+      server galera2 mariadb-galera-1.mariadb-galera:3306 check
+      server galera3 mariadb-galera-2.mariadb-galera:3306 check 

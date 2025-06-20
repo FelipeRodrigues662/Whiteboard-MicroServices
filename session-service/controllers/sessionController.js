@@ -136,3 +136,37 @@ exports.removeUserFromSession = async (req, res) => {
       .json({ error: "Erro interno ao remover usuário da sessão" });
   }
 };
+
+exports.getActiveSessionsCount = async (req, res) => {
+  try {
+    // Busca todas as chaves que começam com 'session:'
+    const keys = await redis.keys('session:*');
+    const count = keys.length;
+    res.json({ activeSessions: count });
+  } catch (error) {
+    console.error('Erro ao contar sessões ativas:', error);
+    res.status(500).json({ error: 'Erro ao contar sessões ativas' });
+  }
+};
+
+exports.getAllConnectedUsers = async (req, res) => {
+  try {
+    const keys = await redis.keys('session:*');
+    let users = [];
+    for (const key of keys) {
+      const sessionData = await redis.get(key);
+      if (sessionData) {
+        const parsed = JSON.parse(sessionData);
+        if (parsed.objects && Array.isArray(parsed.objects)) {
+          users = users.concat(parsed.objects.map(obj => obj.userId));
+        }
+      }
+    }
+    // Remover duplicados
+    const uniqueUsers = [...new Set(users)];
+    res.json({ connectedUsers: uniqueUsers, count: uniqueUsers.length });
+  } catch (error) {
+    console.error('Erro ao buscar usuários conectados:', error);
+    res.status(500).json({ error: 'Erro ao buscar usuários conectados' });
+  }
+};

@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: haproxy-mariadb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: haproxy-mariadb
+  template:
+    metadata:
+      labels:
+        app: haproxy-mariadb
+    spec:
+      containers:
+      - name: haproxy
+        image: haproxy:2.4
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: haproxy-config
+          mountPath: /usr/local/etc/haproxy/haproxy.cfg
+          subPath: haproxy.cfg
+      volumes:
+      - name: haproxy-config
+        configMap:
+          name: haproxy-mariadb-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: haproxy-mariadb
+spec:
+  ports:
+  - port: 3306
+    targetPort: 3306
+  selector:
+    app: haproxy-mariadb 

@@ -15,22 +15,22 @@ spec:
       containers:
       - name: phpmyadmin
         image: phpmyadmin/phpmyadmin
-        env:
-        - name: PMA_HOST
-          value: "mariadb"
-        - name: PMA_PORT
-          value: "3306"
         ports:
         - containerPort: 80
+        env:
+        - name: PMA_HOST
+          value: haproxy-mariadb
+        - name: PMA_PORT
+          value: "3306"
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: phpmyadmin
 spec:
-  type: LoadBalancer
-  selector:
-    app: phpmyadmin
+  type: ClusterIP
   ports:
   - port: 8080
     targetPort: 80
+  selector:
+    app: phpmyadmin 
