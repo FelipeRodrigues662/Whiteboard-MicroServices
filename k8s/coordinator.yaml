@@ -36,6 +36,7 @@ kind: Service
 metadata:
   name: coordinator
 spec:
+  type: LoadBalancer
   ports:
   - port: 4000
     targetPort: 4000

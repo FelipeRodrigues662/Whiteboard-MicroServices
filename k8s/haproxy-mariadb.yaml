@@ -17,6 +17,11 @@ spec:
         image: haproxy:2.4
         ports:
         - containerPort: 3306
+          name: mysql-write
+        - containerPort: 3307
+          name: mysql-read
+        - containerPort: 8404
+          name: stats
         volumeMounts:
         - name: haproxy-config
           mountPath: /usr/local/etc/haproxy/haproxy.cfg
@@ -31,8 +36,16 @@ kind: Service
 metadata:
   name: haproxy-mariadb
 spec:
+  type: LoadBalancer
   ports:
   - port: 3306
     targetPort: 3306
+    name: mysql-write
+  - port: 3307
+    targetPort: 3307
+    name: mysql-read
+  - port: 8404
+    targetPort: 8404
+    name: stats
   selector:
     app: haproxy-mariadb 

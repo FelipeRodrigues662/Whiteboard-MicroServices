@@ -28,6 +28,7 @@ kind: Service
 metadata:
   name: whiteboard-core
 spec:
+  type: LoadBalancer
   ports:
   - port: 4040
     targetPort: 4040

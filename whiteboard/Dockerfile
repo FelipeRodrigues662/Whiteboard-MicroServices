@@ -2,12 +2,12 @@
 FROM node:20 AS build
 WORKDIR /app
 COPY . .
-ARG VITE_URL_AUTH
-ARG VITE_URL_ENDPOINTS
-ARG VITE_URL_SESSION
-ENV VITE_URL_AUTH=$VITE_URL_AUTH
-ENV VITE_URL_ENDPOINTS=$VITE_URL_ENDPOINTS
-ENV VITE_URL_SESSION=$VITE_URL_SESSION
+
+# Criar arquivo .env com as URLs corretas para Minikube Tunnel
+RUN echo "VITE_URL_AUTH=http://127.0.0.1:4020" > .env && \
+    echo "VITE_URL_ENDPOINTS=http://127.0.0.1:4010" >> .env && \
+    echo "VITE_URL_SESSION=ws://127.0.0.1:4000" >> .env
+
 RUN yarn install && yarn build
 
 # Etapa 2: Servir com NGINX

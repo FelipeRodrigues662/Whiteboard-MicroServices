@@ -4,7 +4,7 @@ const axios = require("axios");
 require('dotenv').config();
 
 // Use variável de ambiente para o endereço do core
-const SERVER_URL = process.env.CORE_WS_URL; // DEV padrão
+const SERVER_URL = process.env.CORE_WS_URL;
 const RETRY_INTERVAL = 30000;
 const SEND_INTERVAL = 10000;
 
