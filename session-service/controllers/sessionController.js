@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require("uuid");
 const redis = require("../database/redisClient");
 const Session = require("../models/Session.js");
+const User = require("../models/User.js");
 
 exports.getSession = async (req, res) => {
   try {
@@ -168,5 +169,171 @@ exports.getAllConnectedUsers = async (req, res) => {
   } catch (error) {
     console.error('Erro ao buscar usuários conectados:', error);
     res.status(500).json({ error: 'Erro ao buscar usuários conectados' });
+  }
+};
+
+exports.getUserSessions = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Buscar todas as sessões onde o usuário participa
+    const sessions = await Session.findAll({
+      where: { userId },
+      include: [
+        {
+          model: User,
+          as: 'leader',
+          attributes: ['id', 'name', 'email']
+        },
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'name', 'email']
+        }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.json({ sessions });
+  } catch (error) {
+    console.error("Erro ao buscar sessões do usuário:", error);
+    res.status(500).json({ error: "Erro ao buscar sessões do usuário" });
+  }
+};
+
+exports.getSessionUsers = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    
+    // Buscar dados da sessão no Redis
+    const redisKey = `session:${sessionId}`;
+    const sessionData = await redis.get(redisKey);
+
+    if (!sessionData) {
+      return res.status(404).json({ error: "Sessão não encontrada no Redis" });
+    }
+
+    const parsedData = JSON.parse(sessionData);
+    const userIds = parsedData.objects.map(obj => obj.userId);
+
+    if (userIds.length === 0) {
+      return res.json({ users: [] });
+    }
+
+    // Buscar detalhes dos usuários no banco
+    const users = await User.findAll({
+      where: { id: userIds },
+      attributes: ['id', 'name', 'email']
+    });
+
+    // Buscar informações sobre quem é líder da sessão
+    const sessionLeader = await Session.findOne({
+      where: { sessionId, leaderId: { [require('sequelize').Op.ne]: null } },
+      include: [
+        {
+          model: User,
+          as: 'leader',
+          attributes: ['id', 'name', 'email']
+        }
+      ]
+    });
+
+    const leaderId = sessionLeader ? sessionLeader.leaderId : null;
+
+    // Adicionar flag de líder para cada usuário
+    const usersWithLeaderFlag = users.map(user => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      isLeader: user.id === leaderId
+    }));
+
+    res.json({ users: usersWithLeaderFlag });
+  } catch (error) {
+    console.error("Erro ao buscar usuários da sessão:", error);
+    res.status(500).json({ error: "Erro ao buscar usuários da sessão" });
+  }
+};
+
+exports.saveSessionState = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { state } = req.body;
+    const userId = req.user.id;
+
+    // Verificar se a sessão existe e se o usuário tem permissão
+    const userSession = await Session.findOne({
+      where: { sessionId, userId }
+    });
+
+    if (!userSession) {
+      return res.status(404).json({ error: "Sessão não encontrada ou usuário não tem permissão" });
+    }
+
+    // Buscar todas as entradas da tabela Session para esta sessão
+    const allSessions = await Session.findAll({
+      where: { sessionId }
+    });
+
+    if (allSessions.length === 0) {
+      return res.status(404).json({ error: "Nenhuma entrada de sessão encontrada" });
+    }
+
+    // Atualizar o campo data em todas as entradas da sessão
+    const updatePromises = allSessions.map(session => 
+      session.update({ data: state })
+    );
+
+    await Promise.all(updatePromises);
+
+    res.json({ 
+      message: "Estado da sessão salvo com sucesso em todas as entradas",
+      sessionId: sessionId,
+      updatedEntries: allSessions.length,
+      updatedAt: new Date()
+    });
+
+  } catch (error) {
+    console.error("Erro ao salvar estado da sessão:", error);
+    res.status(500).json({ error: "Erro ao salvar estado da sessão" });
+  }
+};
+
+exports.getSessionState = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const userId = req.user.id;
+
+    // Verificar se o usuário tem permissão para acessar esta sessão
+    const userSession = await Session.findOne({
+      where: { sessionId, userId }
+    });
+
+    if (!userSession) {
+      return res.status(404).json({ error: "Sessão não encontrada ou usuário não tem permissão" });
+    }
+
+    // Buscar qualquer entrada da sessão que tenha dados salvos
+    const sessionWithData = await Session.findOne({
+      where: { 
+        sessionId,
+        data: { [require('sequelize').Op.ne]: null }
+      },
+      attributes: ['id', 'sessionId', 'data', 'updatedAt']
+    });
+
+    if (!sessionWithData || !sessionWithData.data) {
+      return res.status(404).json({ error: "Nenhum estado salvo encontrado para esta sessão" });
+    }
+
+    res.json({ 
+      sessionId: sessionWithData.sessionId,
+      state: sessionWithData.data,
+      lastUpdated: sessionWithData.updatedAt
+    });
+
+  } catch (error) {
+    console.error("Erro ao recuperar estado da sessão:", error);
+    res.status(500).json({ error: "Erro ao recuperar estado da sessão" });
   }
 };

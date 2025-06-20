@@ -114,9 +114,9 @@ services:
     build:
       context: ./whiteboard
       args:
-        VITE_URL_AUTH: http://localhost:4020
-        VITE_URL_ENDPOINTS: http://localhost:4010
-        VITE_URL_SESSION: ws://localhost:4000
+        VITE_URL_AUTH: http://authentication:4020
+        VITE_URL_ENDPOINTS: http://session-service:4010
+        VITE_URL_SESSION: ws://coordinator:4000
     ports:
       - "3000:80"
     networks:

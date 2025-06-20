@@ -5,7 +5,7 @@ echo "🚀 Build das imagens para Kubernetes..."
 # Build do frontend para Kubernetes
 echo "📦 Build do frontend..."
 cd whiteboard
-docker build -f Dockerfile.k8s -t feliperodrigues662/whiteboard:latest .
+docker build -f Dockerfile -t feliperodrigues662/whiteboard:latest .
 cd ..
 
 # Build dos outros serviços (se necessário)
@@ -36,6 +36,6 @@ docker push feliperodrigues662/session-service:latest
 docker push feliperodrigues662/coordinator:latest
 docker push feliperodrigues662/whiteboard-core:latest
 
-echo "✅ Build concluído! Agora você pode executar:"
+echo "✅ Build concluído! Agora você pode executar:".;
 echo "kubectl apply -f k8s/"
 echo "minikube service whiteboard-frontend" 
