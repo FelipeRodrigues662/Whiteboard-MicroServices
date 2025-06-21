@@ -25,7 +25,8 @@ import {
     ArrowLeftOutlined,
     ShareAltOutlined,
     HighlightOutlined,
-    DownloadOutlined
+    DownloadOutlined,
+    CrownOutlined
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fabric } from 'fabric';
@@ -63,17 +64,426 @@ const Whiteboard = () => {
     const [isEditingName, setIsEditingName] = useState(false);
     const token = localStorage.getItem('token');
     const urlCoordinator = import.meta.env.VITE_URL_SESSION;
+    const urlEndpoints = import.meta.env.VITE_URL_ENDPOINTS;
+
     const [isEraser, setIsEraser] = useState(false);
     
-    const [connectedUsers] = useState([
-        { id: 1, name: 'João Silva', avatar: 'J' },
-        { id: 2, name: 'Maria Souza', avatar: 'M' },
-        { id: 3, name: 'Carlos Oliveira', avatar: 'C' },
-    ]);
+    // Estado para usuários conectados
+    const [connectedUsers, setConnectedUsers] = useState([]);
+    const [loadingUsers, setLoadingUsers] = useState(false);
+
+    // Função para salvar estado no localStorage
+    const saveToLocalStorage = () => {
+        if (!canvasRef.current || !sessionId) return;
+        
+        try {
+            // Extrai todos os objetos do canvas com propriedades completas
+            const canvasObjects = canvasRef.current.getObjects().map(obj => {
+                // Filtra indicadores visuais da borracha
+                if (obj.isEraserIndicator) return null;
+                
+                const baseObject = {
+                    type: obj.type || 'unknown',
+                    color: obj.stroke || obj.fill || '#000000',
+                    width: obj.strokeWidth || 1,
+                    left: obj.left || 0,
+                    top: obj.top || 0
+                };
+
+                // Adiciona propriedades específicas baseadas no tipo
+                switch (obj.type) {
+                    case 'line':
+                        return {
+                            ...baseObject,
+                            x1: obj.x1,
+                            y1: obj.y1,
+                            x2: obj.x2,
+                            y2: obj.y2
+                        };
+                    case 'rect':
+                        return {
+                            ...baseObject,
+                            width: obj.width,
+                            height: obj.height,
+                            fill: obj.fill || 'transparent'
+                        };
+                    case 'circle':
+                        return {
+                            ...baseObject,
+                            radius: obj.radius,
+                            fill: obj.fill || 'transparent'
+                        };
+                    case 'path':
+                        return {
+                            ...baseObject,
+                            path: obj.path,
+                            fill: obj.fill || 'transparent'
+                        };
+                    case 'polygon':
+                        return {
+                            ...baseObject,
+                            points: obj.points,
+                            fill: obj.fill || 'transparent'
+                        };
+                    default:
+                        return {
+                            ...baseObject,
+                            width: obj.width || 10,
+                            height: obj.height || 10
+                        };
+                }
+            }).filter(Boolean);
+
+            const stateData = {
+                objects: canvasObjects,
+                boardName: boardName,
+                version: "1.0",
+                lastModified: new Date().toISOString()
+            };
+
+            localStorage.setItem(`whiteboard_${sessionId}`, JSON.stringify(stateData));
+            console.log('Estado salvo no localStorage:', stateData);
+        } catch (error) {
+            console.error('Erro ao salvar no localStorage:', error);
+        }
+    };
+
+    // Função para carregar estado do localStorage
+    const loadFromLocalStorage = () => {
+        if (!canvasRef.current || !sessionId) return;
+        
+        try {
+            const savedState = localStorage.getItem(`whiteboard_${sessionId}`);
+            if (!savedState) return;
+
+            const stateData = JSON.parse(savedState);
+            
+            if (stateData.boardName) {
+                setBoardName(stateData.boardName);
+                localStorage.setItem('whiteboardName', stateData.boardName);
+            }
+
+            if (stateData.objects && Array.isArray(stateData.objects)) {
+                // Limpa o canvas atual
+                canvasRef.current.clear();
+                canvasRef.current.backgroundColor = '#fff';
+
+                // Adiciona cada objeto ao canvas
+                stateData.objects.forEach(obj => {
+                    let fabricObject;
+
+                    switch (obj.type) {
+                        case 'line':
+                            fabricObject = new fabric.Line([obj.x1, obj.y1, obj.x2, obj.y2], {
+                                stroke: obj.color || '#000000',
+                                strokeWidth: obj.width || 1,
+                                selectable: false,
+                                evented: false,
+                                strokeLineCap: 'round',
+                                strokeLineJoin: 'round'
+                            });
+                            break;
+                        case 'rect':
+                            fabricObject = new fabric.Rect({
+                                left: obj.left,
+                                top: obj.top,
+                                width: obj.width,
+                                height: obj.height,
+                                fill: obj.fill || 'transparent',
+                                stroke: obj.color || '#000000',
+                                strokeWidth: obj.width || 1,
+                                selectable: false,
+                                evented: false
+                            });
+                            break;
+                        case 'circle':
+                            fabricObject = new fabric.Circle({
+                                left: obj.left,
+                                top: obj.top,
+                                radius: obj.radius,
+                                fill: obj.fill || 'transparent',
+                                stroke: obj.color || '#000000',
+                                strokeWidth: obj.width || 1,
+                                selectable: false,
+                                evented: false
+                            });
+                            break;
+                        case 'path':
+                            fabricObject = new fabric.Path(obj.path, {
+                                left: obj.left,
+                                top: obj.top,
+                                fill: obj.fill || 'transparent',
+                                stroke: obj.color || '#000000',
+                                strokeWidth: obj.width || 1,
+                                selectable: false,
+                                evented: false
+                            });
+                            break;
+                        case 'polygon':
+                            fabricObject = new fabric.Polygon(obj.points, {
+                                left: obj.left,
+                                top: obj.top,
+                                fill: obj.fill || 'transparent',
+                                stroke: obj.color || '#000000',
+                                strokeWidth: obj.width || 1,
+                                selectable: false,
+                                evented: false
+                            });
+                            break;
+                        default:
+                            // Para outros tipos, tenta criar um objeto genérico
+                            fabricObject = new fabric.Rect({
+                                left: obj.left || 0,
+                                top: obj.top || 0,
+                                width: obj.width || 10,
+                                height: obj.height || 10,
+                                fill: obj.color || '#000000',
+                                selectable: false,
+                                evented: false
+                            });
+                    }
+
+                    if (fabricObject) {
+                        canvasRef.current.add(fabricObject);
+                    }
+                });
+
+                canvasRef.current.renderAll();
+                console.log(`Estado carregado do localStorage: ${stateData.objects.length} objetos`);
+            }
+        } catch (error) {
+            console.error('Erro ao carregar do localStorage:', error);
+        }
+    };
+
+    // Função para carregar o estado salvo da sessão da API
+    const loadSessionState = async () => {
+        if (!sessionId || !token) return;
+        
+        try {
+            const response = await fetch(`${urlEndpoints}/session/${sessionId}/state`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                if (response.status === 404) {
+                    console.log('Nenhum estado salvo encontrado para esta sessão na API');
+                    // Se não há estado na API, tenta carregar do localStorage
+                    loadFromLocalStorage();
+                    return;
+                }
+                throw new Error('Erro ao carregar estado da sessão');
+            }
+
+            const data = await response.json();
+            
+            if (data.state && canvasRef.current) {
+                // Atualiza o nome do board se existir
+                if (data.state.boardName) {
+                    setBoardName(data.state.boardName);
+                    localStorage.setItem('whiteboardName', data.state.boardName);
+                }
+
+                // Carrega os objetos no canvas
+                if (data.state.objects && Array.isArray(data.state.objects)) {
+                    // Limpa o canvas atual
+                    canvasRef.current.clear();
+                    canvasRef.current.backgroundColor = '#fff';
+
+                    // Adiciona cada objeto ao canvas
+                    data.state.objects.forEach(obj => {
+                        let fabricObject;
+
+                        switch (obj.type) {
+                            case 'line':
+                                fabricObject = new fabric.Line([obj.x1, obj.y1, obj.x2, obj.y2], {
+                                    stroke: obj.color || '#000000',
+                                    strokeWidth: obj.width || 1,
+                                    selectable: false,
+                                    evented: false,
+                                    strokeLineCap: 'round',
+                                    strokeLineJoin: 'round'
+                                });
+                                break;
+                            case 'rect':
+                                fabricObject = new fabric.Rect({
+                                    left: obj.left,
+                                    top: obj.top,
+                                    width: obj.width,
+                                    height: obj.height,
+                                    fill: obj.fill || 'transparent',
+                                    stroke: obj.color || '#000000',
+                                    strokeWidth: obj.width || 1,
+                                    selectable: false,
+                                    evented: false
+                                });
+                                break;
+                            case 'circle':
+                                fabricObject = new fabric.Circle({
+                                    left: obj.left,
+                                    top: obj.top,
+                                    radius: obj.radius,
+                                    fill: obj.fill || 'transparent',
+                                    stroke: obj.color || '#000000',
+                                    strokeWidth: obj.width || 1,
+                                    selectable: false,
+                                    evented: false
+                                });
+                                break;
+                            case 'path':
+                                fabricObject = new fabric.Path(obj.path, {
+                                    left: obj.left,
+                                    top: obj.top,
+                                    fill: obj.fill || 'transparent',
+                                    stroke: obj.color || '#000000',
+                                    strokeWidth: obj.width || 1,
+                                    selectable: false,
+                                    evented: false
+                                });
+                                break;
+                            case 'polygon':
+                                fabricObject = new fabric.Polygon(obj.points, {
+                                    left: obj.left,
+                                    top: obj.top,
+                                    fill: obj.fill || 'transparent',
+                                    stroke: obj.color || '#000000',
+                                    strokeWidth: obj.width || 1,
+                                    selectable: false,
+                                    evented: false
+                                });
+                                break;
+                            default:
+                                // Para outros tipos, tenta criar um objeto genérico
+                                fabricObject = new fabric.Rect({
+                                    left: obj.left || 0,
+                                    top: obj.top || 0,
+                                    width: obj.width || 10,
+                                    height: obj.height || 10,
+                                    fill: obj.color || '#000000',
+                                    selectable: false,
+                                    evented: false
+                                });
+                        }
+
+                        if (fabricObject) {
+                            canvasRef.current.add(fabricObject);
+                        }
+                    });
+
+                    canvasRef.current.renderAll();
+                    messageApi.success(`Board "${data.state.boardName}" carregado com sucesso!`);
+                    
+                    // Salva o estado carregado da API no localStorage
+                    saveToLocalStorage();
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao carregar estado da sessão:', error);
+            // Se falhar ao carregar da API, tenta carregar do localStorage
+            loadFromLocalStorage();
+        }
+    };
+
+    // Função para buscar usuários conectados a sessão
+    const fetchConnectedUsers = async () => {
+        if (!sessionId || !token) return;
+        
+        setLoadingUsers(true);
+        try {
+            const response = await fetch(`${urlEndpoints}/session/${sessionId}/users`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Erro ao buscar usuários conectados');
+            }
+
+            const data = await response.json();
+            if (data.users && Array.isArray(data.users)) {
+                setConnectedUsers(data.users);
+            }
+        } catch (error) {
+            console.error('Erro ao buscar usuários:', error);
+        } finally {
+            setLoadingUsers(false);
+        }
+    };
+
+    // Configura o intervalo para buscar usuários a cada minuto
+    useEffect(() => {
+        // Busca inicial
+        fetchConnectedUsers();
+
+        // Configura intervalo de 10 segundos para atualização mais frequente
+        const interval = setInterval(fetchConnectedUsers, 10000);
+
+        // Atualiza quando a janela ganha foco
+        const handleFocus = () => {
+            fetchConnectedUsers();
+        };
+
+        window.addEventListener('focus', handleFocus);
+
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('focus', handleFocus);
+        };
+    }, [sessionId, token, urlEndpoints]);
+
+    // Atualiza a lista quando o sidebar é aberto
+    useEffect(() => {
+        if (showSidebar) {
+            fetchConnectedUsers();
+        }
+    }, [showSidebar]);
+
+    // Fecha o sidebar quando clica fora dele
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            const sidebar = document.querySelector('.user-sidebar');
+            const sidebarToggle = document.querySelector('.sidebar-toggle');
+            
+            // Se o sidebar está aberto e o clique não foi dentro do sidebar nem no botão de toggle
+            if (showSidebar && sidebar && sidebarToggle) {
+                if (!sidebar.contains(event.target) && !sidebarToggle.contains(event.target)) {
+                    setShowSidebar(false);
+                }
+            }
+        };
+
+        const handleKeyDown = (event) => {
+            // Fecha o sidebar com a tecla ESC
+            if (event.key === 'Escape' && showSidebar) {
+                setShowSidebar(false);
+            }
+        };
+
+        // Adiciona os event listeners apenas quando o sidebar está aberto
+        if (showSidebar) {
+            document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener('keydown', handleKeyDown);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [showSidebar]);
 
     // Configura o aviso antes de recarregar
     useEffect(() => {
         const handleBeforeUnload = (e) => {
+            // Salva o estado atual no localStorage antes de sair
+            saveToLocalStorage();
+            
             e.preventDefault();
             e.returnValue = 'Seu trabalho no whiteboard será perdido. Tem certeza que deseja sair?';
             return e.returnValue;
@@ -84,6 +494,19 @@ const Whiteboard = () => {
             window.removeEventListener('beforeunload', handleBeforeUnload);
         };
     }, []);
+
+    // Salva automaticamente no localStorage a cada 30 segundos
+    useEffect(() => {
+        const autoSaveInterval = setInterval(() => {
+            if (canvasRef.current) {
+                saveToLocalStorage();
+            }
+        }, 30000); // 30 segundos
+
+        return () => {
+            clearInterval(autoSaveInterval);
+        };
+    }, [sessionId]);
 
     // Função para obter o nome do usuário do token
     const getUserNameFromToken = () => {
@@ -186,19 +609,6 @@ const Whiteboard = () => {
         canvas.freeDrawingBrush.strokeLineJoin = 'round';
         canvas.freeDrawingBrush.strokeMiterLimit = 10;
 
-        // Carrega do localStorage se existir
-        const savedData = localStorage.getItem('whiteboardData');
-        if (savedData) {
-            canvas.loadFromJSON(JSON.parse(savedData), () => {
-                canvas.getObjects().forEach(obj => {
-                    obj.selectable = false;
-                    obj.evented = false;
-                });
-                canvas.renderAll();
-                message.success('Desenho anterior carregado!');
-            });
-        }
-
         // Ajusta o tamanho do canvas
         const resizeCanvas = () => {
             const container = document.querySelector('.board-container');
@@ -220,6 +630,9 @@ const Whiteboard = () => {
 
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
+
+        // Carrega o estado salvo da sessão
+        loadSessionState();
 
         // Conecta ao WebSocket
         const userId = JSON.parse(atob(token.split('.')[1])).userId;
@@ -255,6 +668,9 @@ const Whiteboard = () => {
                             canvas.add(line);
                             canvas.renderAll();
                             
+                            // Salva no localStorage após adicionar objeto
+                            saveToLocalStorage();
+                            
                             // Atualizar indicadores de usuário
                             if (senderUserId && senderUserId !== userId) {
                                 // Criar ou atualizar cursor
@@ -275,6 +691,9 @@ const Whiteboard = () => {
                             });
                             canvas.discardActiveObject();
                             canvas.renderAll();
+                            
+                            // Salva no localStorage após limpar
+                            saveToLocalStorage();
                             break;
 
                         case 'undo':
@@ -287,7 +706,16 @@ const Whiteboard = () => {
                                 });
                                 canvas.discardActiveObject();
                                 canvas.renderAll();
+                                
+                                // Salva no localStorage após desfazer
+                                saveToLocalStorage();
                             }
+                            break;
+
+                        case 'user_joined':
+                        case 'user_left':
+                            // Atualiza a lista de usuários quando alguém entra ou sai
+                            fetchConnectedUsers();
                             break;
 
                         case 'error':
@@ -502,12 +930,16 @@ const Whiteboard = () => {
                 data: {}
             });
 
-            localStorage.removeItem('whiteboardData');
-            localStorage.removeItem('drawingCoordinates');
+            // Salva no localStorage após limpar
+            saveToLocalStorage();
+
             messageApi.open({
                 type: 'success',
                 content: 'Limpeza efetuada com sucesso',
             });
+
+            localStorage.removeItem('whiteboardData');
+            localStorage.removeItem('drawingCoordinates');
         } catch (error) {
             console.error('Erro ao limpar o canvas:', error);
             messageApi.open({
@@ -537,29 +969,51 @@ const Whiteboard = () => {
             });
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (canvasRef.current) {
             try {
-                // Extrai os dados formatados
-                // eslint-disable-next-line no-unused-vars
-                const drawingData = canvasRef.current.getObjects().map(obj => {
-                    // ... (código anterior de extração de dados)
-                }).filter(Boolean);
+                // Primeiro salva no localStorage para garantir que temos o estado mais recente
+                saveToLocalStorage();
+                
+                // Obtém o estado do localStorage
+                const savedState = localStorage.getItem(`whiteboard_${sessionId}`);
+                if (!savedState) {
+                    throw new Error('Nenhum estado encontrado para salvar');
+                }
 
-                // Salva no localStorage
-                localStorage.setItem('whiteboardData', JSON.stringify(canvasRef.current.toJSON()));
-                localStorage.setItem('drawingCoordinates', JSON.stringify(drawingData));
+                const stateData = JSON.parse(savedState);
 
-                console.log('Coordenadas e cores salvas:', drawingData);
+                // Remove o canvas do payload para reduzir o tamanho
+                const { canvas: _, ...stateWithoutCanvas } = stateData;
+
+                // Envia para o backend
+                const response = await fetch(`${urlEndpoints}/session/${sessionId}/state`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ state: stateWithoutCanvas })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Erro ao salvar no servidor');
+                }
+
+                const result = await response.json();
+                
                 messageApi.open({
                     type: 'success',
-                    content: 'Seu Board foi salvo com sucesso',
+                    content: `Board "${result.boardName}" salvo com sucesso!`,
                 });
+
+                console.log('Board salvo:', result);
+
             } catch (error) {
                 console.error('Erro ao salvar:', error);
                 messageApi.open({
                     type: 'error',
-                    content: 'Não foi possível salvar o Board',
+                    content: 'Não foi possível salvar o Board no servidor',
                 });
             }
         }
@@ -630,11 +1084,32 @@ const Whiteboard = () => {
         }
     };
 
-    const handleSaveName = () => {
-        localStorage.setItem('whiteboardName', boardName);
-        localStorage.setItem('whiteboardLastModified', new Date().toISOString());
-        setIsEditingName(false);
-        messageApi.success('Nome do board atualizado!');
+    const handleSaveName = async () => {
+        try {
+            // Atualiza o nome no backend
+            const response = await fetch(`${urlEndpoints}/session/${sessionId}/name`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ boardName })
+            });
+
+            if (!response.ok) {
+                throw new Error('Erro ao atualizar nome no servidor');
+            }
+
+            // Atualiza no localStorage
+            localStorage.setItem('whiteboardName', boardName);
+            localStorage.setItem('whiteboardLastModified', new Date().toISOString());
+            
+            setIsEditingName(false);
+            messageApi.success('Nome do board atualizado!');
+        } catch (error) {
+            console.error('Erro ao atualizar nome:', error);
+            messageApi.error('Erro ao atualizar nome do board');
+        }
     };
 
     return (
@@ -860,36 +1335,74 @@ const Whiteboard = () => {
                 {/* Sidebar flutuante */}
                 <div className={`user-sidebar ${showSidebar ? 'visible' : ''}`}>
                     <div className="user-list-container">
-                        <h3 className="sidebar-title">Usuários Conectados</h3>
-                        <List
-                            dataSource={connectedUsers}
-                            renderItem={user => (
-                                <List.Item>
-                                    <List.Item.Meta
-                                        avatar={<Avatar>{user.avatar}</Avatar>}
-                                        title={<span className="user-name">{user.name}</span>}
-                                        description={<span className="user-status">Online</span>}
-                                    />
-                                </List.Item>
-                            )}
-                        />
-                            <Tooltip title="Compartilhar">
-                                <Button
-                                    type="primary"
-                                    icon={<ShareAltOutlined />}
-                                    onClick={handleShare}
-                                    className="share-button"
-                                    style={{
-                                        backgroundColor: '#9c62ee',
-                                        borderColor: '#9c62ee',
-                                        color: '#fff',
-                                        width: '100%',
-                                        marginTop: '20px'
-                                    }}
-                                >
-                                    Compartilhar
-                                </Button>
-                            </Tooltip>
+                        <div className="sidebar-header">
+                            <h3 className="sidebar-title">Usuários Conectados</h3>
+                            <Button
+                                type="text"
+                                icon={<UserOutlined />}
+                                onClick={fetchConnectedUsers}
+                                loading={loadingUsers}
+                                className="refresh-users-button"
+                                size="small"
+                            />
+                        </div>
+                        
+                        {loadingUsers ? (
+                            <div className="loading-users">
+                                <div className="loading-spinner"></div>
+                                <span>Carregando usuários...</span>
+                            </div>
+                        ) : (
+                            <List
+                                dataSource={connectedUsers}
+                                renderItem={user => (
+                                    <List.Item className="user-list-item">
+                                        <List.Item.Meta
+                                            avatar={
+                                                <Avatar className={user.isLeader ? 'leader-avatar' : 'user-avatar'}>
+                                                    {user.isLeader ? <CrownOutlined /> : user.name.charAt(0).toUpperCase()}
+                                                </Avatar>
+                                            }
+                                            title={
+                                                <span className="user-name">
+                                                    {user.name}
+                                                    {user.isLeader && <span className="leader-badge">Líder</span>}
+                                                </span>
+                                            }
+                                            description={
+                                                <span className="user-email">{user.email}</span>
+                                            }
+                                        />
+                                    </List.Item>
+                                )}
+                                locale={{
+                                    emptyText: (
+                                        <div className="empty-users">
+                                            <UserOutlined style={{ fontSize: '24px', color: '#666' }} />
+                                            <span>Nenhum usuário conectado</span>
+                                        </div>
+                                    )
+                                }}
+                            />
+                        )}
+                        
+                        <Tooltip title="Compartilhar">
+                            <Button
+                                type="primary"
+                                icon={<ShareAltOutlined />}
+                                onClick={handleShare}
+                                className="share-button"
+                                style={{
+                                    backgroundColor: '#9c62ee',
+                                    borderColor: '#9c62ee',
+                                    color: '#fff',
+                                    width: '100%',
+                                    marginTop: '20px'
+                                }}
+                            >
+                                Compartilhar
+                            </Button>
+                        </Tooltip>
                     </div>
                 </div>
             </div>

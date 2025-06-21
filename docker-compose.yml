@@ -23,6 +23,16 @@ services:
     image: mariadb:latest
     environment:
       - MARIADB_ROOT_PASSWORD=admin
+      # Configurações para aumentar limites de tamanho
+      - MARIADB_MAX_ALLOWED_PACKET=64M
+      - MARIADB_INNODB_LOG_FILE_SIZE=256M
+      - MARIADB_INNODB_BUFFER_POOL_SIZE=512M
+    command: >
+      --max-allowed-packet=64M
+      --innodb-log-file-size=256M
+      --innodb-buffer-pool-size=512M
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
     volumes:
       - vol1:/var/lib/mysql
     networks:
@@ -114,9 +124,9 @@ services:
     build:
       context: ./whiteboard
       args:
-        VITE_URL_AUTH: http://authentication:4020
-        VITE_URL_ENDPOINTS: http://session-service:4010
-        VITE_URL_SESSION: ws://coordinator:4000
+        VITE_URL_AUTH: http://localhost:4020
+        VITE_URL_ENDPOINTS: http://localhost:4010
+        VITE_URL_SESSION: ws://localhost:4000
     ports:
       - "3000:80"
     networks:

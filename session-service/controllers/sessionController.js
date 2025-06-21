@@ -141,25 +141,25 @@ exports.removeUserFromSession = async (req, res) => {
 exports.getActiveSessionsCount = async (req, res) => {
   try {
     // Busca todas as chaves que começam com 'session:'
-    const keys = await redis.keys('session:*');
+    const keys = await redis.keys("session:*");
     const count = keys.length;
     res.json({ activeSessions: count });
   } catch (error) {
-    console.error('Erro ao contar sessões ativas:', error);
-    res.status(500).json({ error: 'Erro ao contar sessões ativas' });
+    console.error("Erro ao contar sessões ativas:", error);
+    res.status(500).json({ error: "Erro ao contar sessões ativas" });
   }
 };
 
 exports.getAllConnectedUsers = async (req, res) => {
   try {
-    const keys = await redis.keys('session:*');
+    const keys = await redis.keys("session:*");
     let users = [];
     for (const key of keys) {
       const sessionData = await redis.get(key);
       if (sessionData) {
         const parsed = JSON.parse(sessionData);
         if (parsed.objects && Array.isArray(parsed.objects)) {
-          users = users.concat(parsed.objects.map(obj => obj.userId));
+          users = users.concat(parsed.objects.map((obj) => obj.userId));
         }
       }
     }
@@ -167,31 +167,31 @@ exports.getAllConnectedUsers = async (req, res) => {
     const uniqueUsers = [...new Set(users)];
     res.json({ connectedUsers: uniqueUsers, count: uniqueUsers.length });
   } catch (error) {
-    console.error('Erro ao buscar usuários conectados:', error);
-    res.status(500).json({ error: 'Erro ao buscar usuários conectados' });
+    console.error("Erro ao buscar usuários conectados:", error);
+    res.status(500).json({ error: "Erro ao buscar usuários conectados" });
   }
 };
 
 exports.getUserSessions = async (req, res) => {
   try {
     const userId = req.user.id;
-    
+
     // Buscar todas as sessões onde o usuário participa
     const sessions = await Session.findAll({
       where: { userId },
       include: [
         {
           model: User,
-          as: 'leader',
-          attributes: ['id', 'name', 'email']
+          as: "leader",
+          attributes: ["id", "name", "email"],
         },
         {
           model: User,
-          as: 'user',
-          attributes: ['id', 'name', 'email']
-        }
+          as: "user",
+          attributes: ["id", "name", "email"],
+        },
       ],
-      order: [['createdAt', 'DESC']]
+      order: [["createdAt", "DESC"]],
     });
 
     res.json({ sessions });
@@ -204,7 +204,7 @@ exports.getUserSessions = async (req, res) => {
 exports.getSessionUsers = async (req, res) => {
   try {
     const { sessionId } = req.params;
-    
+
     // Buscar dados da sessão no Redis
     const redisKey = `session:${sessionId}`;
     const sessionData = await redis.get(redisKey);
@@ -214,7 +214,7 @@ exports.getSessionUsers = async (req, res) => {
     }
 
     const parsedData = JSON.parse(sessionData);
-    const userIds = parsedData.objects.map(obj => obj.userId);
+    const userIds = parsedData.objects.map((obj) => obj.userId);
 
     if (userIds.length === 0) {
       return res.json({ users: [] });
@@ -223,29 +223,29 @@ exports.getSessionUsers = async (req, res) => {
     // Buscar detalhes dos usuários no banco
     const users = await User.findAll({
       where: { id: userIds },
-      attributes: ['id', 'name', 'email']
+      attributes: ["id", "name", "email"],
     });
 
     // Buscar informações sobre quem é líder da sessão
     const sessionLeader = await Session.findOne({
-      where: { sessionId, leaderId: { [require('sequelize').Op.ne]: null } },
+      where: { sessionId, leaderId: { [require("sequelize").Op.ne]: null } },
       include: [
         {
           model: User,
-          as: 'leader',
-          attributes: ['id', 'name', 'email']
-        }
-      ]
+          as: "leader",
+          attributes: ["id", "name", "email"],
+        },
+      ],
     });
 
     const leaderId = sessionLeader ? sessionLeader.leaderId : null;
 
     // Adicionar flag de líder para cada usuário
-    const usersWithLeaderFlag = users.map(user => ({
+    const usersWithLeaderFlag = users.map((user) => ({
       id: user.id,
       name: user.name,
       email: user.email,
-      isLeader: user.id === leaderId
+      isLeader: user.id === leaderId,
     }));
 
     res.json({ users: usersWithLeaderFlag });
@@ -263,36 +263,54 @@ exports.saveSessionState = async (req, res) => {
 
     // Verificar se a sessão existe e se o usuário tem permissão
     const userSession = await Session.findOne({
-      where: { sessionId, userId }
+      where: { sessionId, userId },
     });
 
     if (!userSession) {
-      return res.status(404).json({ error: "Sessão não encontrada ou usuário não tem permissão" });
+      return res
+        .status(404)
+        .json({ error: "Sessão não encontrada ou usuário não tem permissão" });
     }
+
+    // Validar o formato do estado
+    if (!state || typeof state !== "object") {
+      return res.status(400).json({ error: "Estado inválido" });
+    }
+
+    // Estrutura esperada do estado
+    const expectedState = {
+      canvas: state.canvas || null,
+      objects: state.objects || [],
+      version: state.version || "1.0",
+      boardName: state.boardName || "Meu Board",
+    };
 
     // Buscar todas as entradas da tabela Session para esta sessão
     const allSessions = await Session.findAll({
-      where: { sessionId }
+      where: { sessionId },
     });
 
     if (allSessions.length === 0) {
-      return res.status(404).json({ error: "Nenhuma entrada de sessão encontrada" });
+      return res
+        .status(404)
+        .json({ error: "Nenhuma entrada de sessão encontrada" });
     }
 
     // Atualizar o campo data em todas as entradas da sessão
-    const updatePromises = allSessions.map(session => 
-      session.update({ data: state })
+    const updatePromises = allSessions.map((session) =>
+      session.update({ data: expectedState })
     );
 
     await Promise.all(updatePromises);
 
-    res.json({ 
-      message: "Estado da sessão salvo com sucesso em todas as entradas",
+    res.json({
+      message: "Estado da sessão salvo com sucesso",
       sessionId: sessionId,
+      boardName: expectedState.boardName,
+      objectsCount: expectedState.objects.length,
       updatedEntries: allSessions.length,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     });
-
   } catch (error) {
     console.error("Erro ao salvar estado da sessão:", error);
     res.status(500).json({ error: "Erro ao salvar estado da sessão" });
@@ -306,32 +324,35 @@ exports.getSessionState = async (req, res) => {
 
     // Verificar se o usuário tem permissão para acessar esta sessão
     const userSession = await Session.findOne({
-      where: { sessionId, userId }
+      where: { sessionId, userId },
     });
 
     if (!userSession) {
-      return res.status(404).json({ error: "Sessão não encontrada ou usuário não tem permissão" });
+      return res
+        .status(404)
+        .json({ error: "Sessão não encontrada ou usuário não tem permissão" });
     }
 
     // Buscar qualquer entrada da sessão que tenha dados salvos
     const sessionWithData = await Session.findOne({
-      where: { 
+      where: {
         sessionId,
-        data: { [require('sequelize').Op.ne]: null }
+        data: { [require("sequelize").Op.ne]: null },
       },
-      attributes: ['id', 'sessionId', 'data', 'updatedAt']
+      attributes: ["id", "sessionId", "data", "updatedAt"],
     });
 
     if (!sessionWithData || !sessionWithData.data) {
-      return res.status(404).json({ error: "Nenhum estado salvo encontrado para esta sessão" });
+      return res
+        .status(404)
+        .json({ error: "Nenhum estado salvo encontrado para esta sessão" });
     }
 
-    res.json({ 
+    res.json({
       sessionId: sessionWithData.sessionId,
       state: sessionWithData.data,
-      lastUpdated: sessionWithData.updatedAt
+      lastUpdated: sessionWithData.updatedAt,
     });
-
   } catch (error) {
     console.error("Erro ao recuperar estado da sessão:", error);
     res.status(500).json({ error: "Erro ao recuperar estado da sessão" });
