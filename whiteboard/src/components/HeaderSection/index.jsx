@@ -1,6 +1,6 @@
 import React from 'react';
 import { Layout, Typography, Divider, Button, Space } from 'antd';
-import { LogoutOutlined } from '@ant-design/icons';
+import { LogoutOutlined, BarChartOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import './index_header.css';
 import logo from '../../assets/logo.png';
@@ -25,6 +25,10 @@ export default function HeaderSection() {
         }, 1000);
     };
 
+    const handleInfo = () => {
+        navigate('/info');
+    };
+
     return (
         <Header className="modern-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0px', flexDirection: "column" }}>
@@ -40,6 +44,15 @@ export default function HeaderSection() {
 
                 {isLoggedIn && (
                     <Space className="header-buttons" style={{ marginBottom: '20px' }}>
+                        <Button
+                            type="primary"
+                            size="large"
+                            className="signup-button"
+                            icon={<BarChartOutlined />}
+                            onClick={handleInfo}
+                        >
+                            Informações dos servidores
+                        </Button>
                         <Button
                             type="primary"
                             size="large"

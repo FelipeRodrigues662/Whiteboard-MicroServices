@@ -1,8 +1,18 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { createSession, getSession, addUserToSession, removeUserFromSession, getActiveSessionsCount, getAllConnectedUsers, getUserSessions, getSessionUsers, saveSessionState, getSessionState } = require('../controllers/sessionController');
-const authenticateToken = require('../middleware/auth.js');
-
+const {
+  createSession,
+  getSession,
+  addUserToSession,
+  removeUserFromSession,
+  getActiveSessionsCount,
+  getAllConnectedUsers,
+  getUserSessions,
+  getSessionUsers,
+  saveSessionState,
+  getSessionState,
+} = require("../controllers/sessionController");
+const authenticateToken = require("../middleware/auth.js");
 
 /**
  * @swagger
@@ -13,7 +23,7 @@ const authenticateToken = require('../middleware/auth.js');
  *       200:
  *         description: Sessão criada com sucesso
  */
-router.post('/create-session', authenticateToken, createSession);
+router.post("/create-session", authenticateToken, createSession);
 
 /**
  * @swagger
@@ -30,7 +40,7 @@ router.post('/create-session', authenticateToken, createSession);
  *       200:
  *         description: Estado da sessão
  */
-router.get('/session/:id', authenticateToken, getSession);
+router.get("/session/:id", authenticateToken, getSession);
 
 /**
  * @swagger
@@ -54,7 +64,7 @@ router.get('/session/:id', authenticateToken, getSession);
  *       404:
  *         description: Sessão não encontrada
  */
-router.post('/session/add-user', authenticateToken, addUserToSession);
+router.post("/session/add-user", authenticateToken, addUserToSession);
 
 /**
  * @swagger
@@ -69,7 +79,7 @@ router.post('/session/add-user', authenticateToken, addUserToSession);
  *           schema:
  *             type: object
  *             required:
- *               - sessionId    
+ *               - sessionId
  *             properties:
  *               sessionId:
  *                 type: string
@@ -84,7 +94,7 @@ router.post('/session/add-user', authenticateToken, addUserToSession);
  *       500:
  *         description: Erro interno ao remover usuário da sessão
  */
-router.post('/session/remove-user', authenticateToken, removeUserFromSession);
+router.post("/session/remove-user", authenticateToken, removeUserFromSession);
 
 /**
  * @swagger
@@ -95,7 +105,7 @@ router.post('/session/remove-user', authenticateToken, removeUserFromSession);
  *       200:
  *         description: Quantidade de sessões ativas
  */
-router.get('/sessions/active-count', getActiveSessionsCount);
+router.get("/sessions/active-count", getActiveSessionsCount);
 
 /**
  * @swagger
@@ -106,7 +116,7 @@ router.get('/sessions/active-count', getActiveSessionsCount);
  *       200:
  *         description: Usuários conectados em todas as sessões
  */
-router.get('/sessions/connected-users', getAllConnectedUsers);
+router.get("/sessions/connected-users", getAllConnectedUsers);
 
 /**
  * @swagger
@@ -160,7 +170,7 @@ router.get('/sessions/connected-users', getAllConnectedUsers);
  *       500:
  *         description: Erro interno do servidor
  */
-router.get('/user/sessions', authenticateToken, getUserSessions);
+router.get("/user/sessions", authenticateToken, getUserSessions);
 
 /**
  * @swagger
@@ -205,14 +215,14 @@ router.get('/user/sessions', authenticateToken, getUserSessions);
  *       500:
  *         description: Erro interno do servidor
  */
-router.get('/session/:sessionId/users', authenticateToken, getSessionUsers);
+router.get("/session/:sessionId/users", authenticateToken, getSessionUsers);
 
 /**
  * @swagger
  * /session/{sessionId}/state:
  *   post:
  *     summary: Salva o estado da sessão no banco de dados
- *     description: Salva o estado atual da sessão no campo data da tabela Session
+ *     description: Salva o estado atual da sessão incluindo canvas, objetos, nome do board e metadados
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -231,12 +241,69 @@ router.get('/session/:sessionId/users', authenticateToken, getSessionUsers);
  *             properties:
  *               state:
  *                 type: object
- *                 description: Estado da sessão a ser salvo (pode ser qualquer objeto JSON)
- *                 example: {
- *                   "canvas": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
- *                   "objects": [{"type": "rect", "x": 100, "y": 100}],
- *                   "version": "1.0"
- *                 }
+ *                 required:
+ *                   - canvas
+ *                   - objects
+ *                   - boardName
+ *                 properties:
+ *                   canvas:
+ *                     type: string
+ *                     description: Imagem do canvas em base64
+ *                     example: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+ *                   objects:
+ *                     type: array
+ *                     description: Lista de objetos do whiteboard com propriedades detalhadas
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         type:
+ *                           type: string
+ *                           description: Tipo do objeto (line, rect, circle, etc.)
+ *                           example: "line"
+ *                         color:
+ *                           type: string
+ *                           description: Cor do objeto em formato hexadecimal
+ *                           example: "#000000"
+ *                         width:
+ *                           type: number
+ *                           description: Largura do traço do objeto
+ *                           example: 5
+ *                         x1:
+ *                           type: number
+ *                           description: Posição X inicial (para linhas)
+ *                           example: 50
+ *                         y1:
+ *                           type: number
+ *                           description: Posição Y inicial (para linhas)
+ *                           example: 50
+ *                         x2:
+ *                           type: number
+ *                           description: Posição X final (para linhas)
+ *                           example: 150
+ *                         y2:
+ *                           type: number
+ *                           description: Posição Y final (para linhas)
+ *                           example: 150
+ *                         left:
+ *                           type: number
+ *                           description: Posição X (para retângulos, círculos e outros objetos)
+ *                           example: 100
+ *                         top:
+ *                           type: number
+ *                           description: Posição Y (para retângulos, círculos e outros objetos)
+ *                           example: 100
+ *                         radius:
+ *                           type: number
+ *                           description: Raio do círculo
+ *                           example: 25
+ *                   boardName:
+ *                     type: string
+ *                     description: Nome do whiteboard
+ *                     example: "Meu Board"
+ *                   version:
+ *                     type: string
+ *                     description: Versão do formato de dados
+ *                     example: "1.0"
  *     responses:
  *       200:
  *         description: Estado da sessão salvo com sucesso
@@ -250,15 +317,26 @@ router.get('/session/:sessionId/users', authenticateToken, getSessionUsers);
  *                   example: "Estado da sessão salvo com sucesso"
  *                 sessionId:
  *                   type: string
+ *                 boardName:
+ *                   type: string
+ *                   description: Nome do board salvo
+ *                 objectsCount:
+ *                   type: number
+ *                   description: Quantidade de objetos salvos
+ *                 updatedEntries:
+ *                   type: number
+ *                   description: Quantidade de entradas atualizadas
  *                 updatedAt:
  *                   type: string
  *                   format: date-time
+ *       400:
+ *         description: Estado inválido ou dados malformados
  *       404:
  *         description: Sessão não encontrada ou usuário não tem permissão
  *       500:
  *         description: Erro interno do servidor
  */
-router.post('/session/:sessionId/state', authenticateToken, saveSessionState);
+router.post("/session/:sessionId/state", authenticateToken, saveSessionState);
 
 /**
  * @swagger
@@ -299,6 +377,6 @@ router.post('/session/:sessionId/state', authenticateToken, saveSessionState);
  *       500:
  *         description: Erro interno do servidor
  */
-router.get('/session/:sessionId/state', authenticateToken, getSessionState);
+router.get("/session/:sessionId/state", authenticateToken, getSessionState);
 
 module.exports = router;
