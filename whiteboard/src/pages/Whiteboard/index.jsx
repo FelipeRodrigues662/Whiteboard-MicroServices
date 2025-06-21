@@ -77,11 +77,6 @@ const Whiteboard = () => {
         if (!canvasRef.current || !sessionId) return;
         
         try {
-            const canvas = document.getElementById('canvas');
-            if (!canvas) return;
-            
-            const canvasImage = canvas.toDataURL('image/png');
-            
             // Extrai todos os objetos do canvas com propriedades completas
             const canvasObjects = canvasRef.current.getObjects().map(obj => {
                 // Filtra indicadores visuais da borracha
@@ -140,7 +135,6 @@ const Whiteboard = () => {
             }).filter(Boolean);
 
             const stateData = {
-                canvas: canvasImage,
                 objects: canvasObjects,
                 boardName: boardName,
                 version: "1.0",
@@ -381,7 +375,7 @@ const Whiteboard = () => {
                     });
 
                     canvasRef.current.renderAll();
-                    messageApi.success(`Board "${data.state.boardName}" carregado com sucesso! (${data.state.objects.length} objetos)`);
+                    messageApi.success(`Board "${data.state.boardName}" carregado com sucesso!`);
                     
                     // Salva o estado carregado da API no localStorage
                     saveToLocalStorage();
@@ -989,6 +983,9 @@ const Whiteboard = () => {
 
                 const stateData = JSON.parse(savedState);
 
+                // Remove o canvas do payload para reduzir o tamanho
+                const { canvas: _, ...stateWithoutCanvas } = stateData;
+
                 // Envia para o backend
                 const response = await fetch(`${urlEndpoints}/session/${sessionId}/state`, {
                     method: 'POST',
@@ -996,7 +993,7 @@ const Whiteboard = () => {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ state: stateData })
+                    body: JSON.stringify({ state: stateWithoutCanvas })
                 });
 
                 if (!response.ok) {
@@ -1007,7 +1004,7 @@ const Whiteboard = () => {
                 
                 messageApi.open({
                     type: 'success',
-                    content: `Board "${result.boardName}" salvo com sucesso! (${result.objectsCount} objetos)`,
+                    content: `Board "${result.boardName}" salvo com sucesso!`,
                 });
 
                 console.log('Board salvo:', result);
@@ -1087,11 +1084,32 @@ const Whiteboard = () => {
         }
     };
 
-    const handleSaveName = () => {
-        localStorage.setItem('whiteboardName', boardName);
-        localStorage.setItem('whiteboardLastModified', new Date().toISOString());
-        setIsEditingName(false);
-        messageApi.success('Nome do board atualizado!');
+    const handleSaveName = async () => {
+        try {
+            // Atualiza o nome no backend
+            const response = await fetch(`${urlEndpoints}/session/${sessionId}/name`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ boardName })
+            });
+
+            if (!response.ok) {
+                throw new Error('Erro ao atualizar nome no servidor');
+            }
+
+            // Atualiza no localStorage
+            localStorage.setItem('whiteboardName', boardName);
+            localStorage.setItem('whiteboardLastModified', new Date().toISOString());
+            
+            setIsEditingName(false);
+            messageApi.success('Nome do board atualizado!');
+        } catch (error) {
+            console.error('Erro ao atualizar nome:', error);
+            messageApi.error('Erro ao atualizar nome do board');
+        }
     };
 
     return (
