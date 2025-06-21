@@ -191,7 +191,16 @@ exports.getUserSessions = async (req, res) => {
           attributes: ["id", "name", "email"],
         },
       ],
-      order: [["createdAt", "DESC"]],
+      attributes: [
+        "id",
+        "sessionId",
+        "userId",
+        "leaderId",
+        "boardName",
+        "createdAt",
+        "updatedAt",
+      ],
+      order: [["updatedAt", "DESC"]],
     });
 
     res.json({ sessions });
@@ -277,12 +286,12 @@ exports.saveSessionState = async (req, res) => {
       return res.status(400).json({ error: "Estado inválido" });
     }
 
-    // Estrutura esperada do estado
+    // Estrutura esperada do estado (sem o canvas para reduzir o tamanho)
     const expectedState = {
-      canvas: state.canvas || null,
       objects: state.objects || [],
       version: state.version || "1.0",
       boardName: state.boardName || "Meu Board",
+      lastModified: state.lastModified || new Date().toISOString(),
     };
 
     // Buscar todas as entradas da tabela Session para esta sessão
@@ -296,9 +305,12 @@ exports.saveSessionState = async (req, res) => {
         .json({ error: "Nenhuma entrada de sessão encontrada" });
     }
 
-    // Atualizar o campo data em todas as entradas da sessão
+    // Atualizar o campo data e boardName em todas as entradas da sessão
     const updatePromises = allSessions.map((session) =>
-      session.update({ data: expectedState })
+      session.update({
+        data: expectedState,
+        boardName: expectedState.boardName,
+      })
     );
 
     await Promise.all(updatePromises);
@@ -356,5 +368,103 @@ exports.getSessionState = async (req, res) => {
   } catch (error) {
     console.error("Erro ao recuperar estado da sessão:", error);
     res.status(500).json({ error: "Erro ao recuperar estado da sessão" });
+  }
+};
+
+exports.deleteSession = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const userId = req.user.id;
+
+    // Verificar se a sessão existe e se o usuário tem permissão
+    const userSession = await Session.findOne({
+      where: { sessionId, userId },
+    });
+
+    if (!userSession) {
+      return res
+        .status(404)
+        .json({ error: "Sessão não encontrada ou usuário não tem permissão" });
+    }
+
+    // Deletar todas as entradas da sessão do banco de dados
+    const deletedCount = await Session.destroy({
+      where: { sessionId },
+    });
+
+    // Deletar dados da sessão do Redis
+    try {
+      const redisKey = `session:${sessionId}`;
+      await redis.del(redisKey);
+    } catch (redisError) {
+      console.warn("Erro ao deletar dados do Redis:", redisError);
+      // Continua mesmo se falhar no Redis
+    }
+
+    res.json({
+      message: "Sessão deletada com sucesso",
+      sessionId: sessionId,
+      deletedEntries: deletedCount,
+    });
+  } catch (error) {
+    console.error("Erro ao deletar sessão:", error);
+    res.status(500).json({ error: "Erro ao deletar sessão" });
+  }
+};
+
+exports.updateSessionName = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { boardName } = req.body;
+    const userId = req.user.id;
+
+    // Verificar se a sessão existe e se o usuário tem permissão
+    const userSession = await Session.findOne({
+      where: { sessionId, userId },
+    });
+
+    if (!userSession) {
+      return res
+        .status(404)
+        .json({ error: "Sessão não encontrada ou usuário não tem permissão" });
+    }
+
+    // Validar o nome do board
+    if (
+      !boardName ||
+      typeof boardName !== "string" ||
+      boardName.trim().length === 0
+    ) {
+      return res.status(400).json({ error: "Nome do board inválido" });
+    }
+
+    // Buscar todas as entradas da tabela Session para esta sessão
+    const allSessions = await Session.findAll({
+      where: { sessionId },
+    });
+
+    if (allSessions.length === 0) {
+      return res
+        .status(404)
+        .json({ error: "Nenhuma entrada de sessão encontrada" });
+    }
+
+    // Atualizar o campo boardName em todas as entradas da sessão
+    const updatePromises = allSessions.map((session) =>
+      session.update({ boardName: boardName.trim() })
+    );
+
+    await Promise.all(updatePromises);
+
+    res.json({
+      message: "Nome do board atualizado com sucesso",
+      sessionId: sessionId,
+      boardName: boardName.trim(),
+      updatedEntries: allSessions.length,
+      updatedAt: new Date(),
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar nome do board:", error);
+    res.status(500).json({ error: "Erro ao atualizar nome do board" });
   }
 };

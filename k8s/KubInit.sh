@@ -24,6 +24,7 @@ kubectl apply -f whiteboard-core.yaml
 
 echo "⏳ Aguardando 20 segundos para os serviços de backend iniciarem..."
 sleep 20
+kubectl exec -it mariadb-galera-0 -- mysql -u root -padmin -e "CREATE DATABASE IF NOT EXISTS whiteboard_app_db;"
 
 echo "🌐 Aplicando frontend e ferramentas de administração..."
 kubectl apply -f frontend.yaml
