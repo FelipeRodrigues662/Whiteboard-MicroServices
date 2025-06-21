@@ -1,11 +1,14 @@
 #!/bin/bash
 
 echo "🚀 Iniciando deployment dos serviços no Kubernetes..."
-
+kubectl apply -f dns-fix.yaml
+sleep 10
 echo "📦 Aplicando serviços de infraestrutura..."
-kubectl apply -f haproxy-configmap.yaml
 kubectl apply -f mariadb-galera.yaml
+sleep 30
 kubectl apply -f haproxy-mariadb.yaml
+kubectl apply -f haproxy-configmap.yaml
+sleep 10
 kubectl apply -f redis.yaml
 kubectl apply -f rabbitmq.yaml
 
