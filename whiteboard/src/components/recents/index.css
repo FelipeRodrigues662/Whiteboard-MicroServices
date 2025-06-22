@@ -22,13 +22,37 @@ h3:where(.css-dev-only-do-not-override-1v5z42l).ant-typography, div:where(.css-d
 
 .boards-grid {
     width: 100%;
-    display: flex;
-    justify-content: center;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
-.boards-grid .ant-list {
-    width: 100%;
-    max-width: 1400px;
+.sessions-grid {
+    margin-top: 20px;
+}
+
+/* Container de loading */
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    gap: 16px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(156, 98, 238, 0.3);
+    border-top: 3px solid #9c62ee;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 .board-card {
@@ -37,8 +61,10 @@ h3:where(.css-dev-only-do-not-override-1v5z42l).ant-typography, div:where(.css-d
     background: rgba(30, 30, 30, 0.7) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     transition: all 0.3s ease;
-    height: 100%;
-    width: 300px !important;
+    height: 100% !important;
+    cursor: pointer !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.122) !important;
 }
 
 .board-card:hover {
@@ -70,14 +96,41 @@ h3:where(.css-dev-only-do-not-override-1v5z42l).ant-typography, div:where(.css-d
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.2s ease;
 }
 
 .card-action-button:hover {
     color: #b07df1 !important;
+    background-color: rgba(156, 98, 238, 0.1) !important;
+}
+
+.card-action-button.ant-btn-dangerous {
+    color: #ff4d4f !important;
+}
+
+.card-action-button.ant-btn-dangerous:hover {
+    color: #ff7875 !important;
+    background-color: rgba(255, 77, 79, 0.1) !important;
+}
+
+.card-action-button-share {
+    color: #9c62ee !important;
+    font-size: 16px;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.card-action-button-share:hover {
+    color: #b07df1 !important;
+    background-color: rgba(156, 98, 238, 0.1) !important;
 }
 
 .board-thumbnail {
-    height: 180px;
+    height: 80px;
     background: linear-gradient(135deg, rgba(30, 30, 30, 0.8), rgba(45, 22, 62, 0.8));
     display: flex;
     align-items: center;
@@ -99,6 +152,17 @@ h3:where(.css-dev-only-do-not-override-1v5z42l).ant-typography, div:where(.css-d
 .card-description {
     color: #aaa !important;
     font-size: 0.8rem !important;
+}
+
+/* Estilo para o ícone ao lado do título */
+.board-card .ant-card-meta-title {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+.board-card .ant-card-meta-title .anticon {
+    flex-shrink: 0;
 }
 
 :where(.css-dev-only-do-not-override-1v5z42l).ant-card .ant-card-actions>li >span {
@@ -140,14 +204,14 @@ h3:where(.css-dev-only-do-not-override-1v5z42l).ant-typography, div:where(.css-d
 }
 
 /* Responsividade */
-@media (max-width: 1400px) {
-    .boards-grid .ant-list {
+@media (max-width: 1200px) {
+    .boards-grid {
         max-width: 1000px;
     }
 }
 
-@media (max-width: 1200px) {
-    .boards-grid .ant-list {
+@media (max-width: 992px) {
+    .boards-grid {
         max-width: 800px;
     }
     
@@ -156,27 +220,22 @@ h3:where(.css-dev-only-do-not-override-1v5z42l).ant-typography, div:where(.css-d
     }
 }
 
-@media (max-width: 992px) {
-    .boards-grid .ant-list {
-        max-width: 600px;
-    }
-    
-    .board-thumbnail {
-        height: 150px;
-    }
-}
-
 @media (max-width: 768px) {
     .recents-container {
         padding: 16px;
     }
     
-    .boards-grid .ant-list {
-        max-width: 400px;
+    .boards-grid {
+        max-width: 100%;
     }
     
     .board-thumbnail {
         height: 140px;
+    }
+    
+    .recents-title {
+        font-size: 24px !important;
+        margin-bottom: 24px !important;
     }
 }
 
@@ -185,11 +244,18 @@ h3:where(.css-dev-only-do-not-override-1v5z42l).ant-typography, div:where(.css-d
         padding: 12px;
     }
     
-    .boards-grid .ant-list {
-        max-width: 100%;
-    }
-    
     .board-thumbnail {
         height: 120px;
+    }
+    
+    .recents-title {
+        font-size: 20px !important;
+        margin-bottom: 20px !important;
+    }
+    
+    .board-card .ant-card-meta-title {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 4px !important;
     }
 }

@@ -17,6 +17,23 @@ spec:
         image: feliperodrigues662/whiteboard:latest
         ports:
         - containerPort: 80
+        env:
+        - name: CORE_WS_URL
+          value: ws://whiteboard-core:4040
+        - name: VITE_URL_AUTH
+          value: http://authentication:4020
+        - name: VITE_URL_ENDPOINTS
+          value: http://session-service:4010
+        - name: VITE_URL_SESSION
+          value: http://coordinator:4000
+        - name: REDIS_HOST
+          value: redis   
+        - name: RABBITMQ_HOST
+          value: rabbitmq
+        - name: RABBITMQ_USER
+          value: user
+        - name: RABBITMQ_PASSWORD
+          value: pass
 ---
 apiVersion: v1
 kind: Service

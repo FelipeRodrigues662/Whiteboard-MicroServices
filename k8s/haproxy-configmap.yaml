@@ -8,19 +8,60 @@ data:
   haproxy.cfg: |
     global
       maxconn 4096
+      log stdout format raw local0 info
 
     defaults
       mode tcp
       timeout connect 10s
       timeout client 1m
       timeout server 1m
+      log global
+      option redispatch
+      retries 3
 
-    frontend mysql
+    # Frontend para escrita (apenas líder)
+    frontend mysql-write
       bind *:3306
-      default_backend galera-cluster
+      default_backend galera-write
 
-    backend galera-cluster
+    # Frontend para leitura (todas as réplicas)
+    frontend mysql-read
+      bind *:3307
+      default_backend galera-read
+
+    # Backend para escrita - detecção automática de líder
+    backend galera-write
+      balance first
+      option mysql-check
+      
+      # Algoritmo de eleição: primeiro nó disponível é o líder
+      server galera1 mariadb-galera-0.mariadb-galera:3306 check weight 100 maxconn 100
+      server galera2 mariadb-galera-1.mariadb-galera:3306 check weight 0 maxconn 100 backup
+      server galera3 mariadb-galera-2.mariadb-galera:3306 check weight 0 maxconn 100 backup
+      
+      # Configurações de failover
+      option redispatch
+      retries 3
+
+    # Backend para leitura - balanceamento round-robin
+    backend galera-read
       balance roundrobin
-      server galera1 mariadb-galera-0.mariadb-galera:3306 check
-      server galera2 mariadb-galera-1.mariadb-galera:3306 check
-      server galera3 mariadb-galera-2.mariadb-galera:3306 check 
+      option mysql-check
+      
+      # Todas as réplicas para leitura
+      server galera1 mariadb-galera-0.mariadb-galera:3306 check weight 100 maxconn 200
+      server galera2 mariadb-galera-1.mariadb-galera:3306 check weight 100 maxconn 200
+      server galera3 mariadb-galera-2.mariadb-galera:3306 check weight 100 maxconn 200
+      
+      # Configurações de failover
+      option redispatch
+      retries 3
+
+    # Stats para monitoramento
+    listen stats
+      bind *:8404
+      mode http
+      stats enable
+      stats uri /stats
+      stats refresh 10s
+      stats auth admin:admin123 

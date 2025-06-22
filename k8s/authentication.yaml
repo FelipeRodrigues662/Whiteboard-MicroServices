@@ -38,6 +38,7 @@ kind: Service
 metadata:
   name: authentication
 spec:
+  type: LoadBalancer
   ports:
   - port: 4020
     targetPort: 4020

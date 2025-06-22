@@ -38,6 +38,7 @@ kind: Service
 metadata:
   name: session-service
 spec:
+  type: LoadBalancer
   ports:
   - port: 4010
     targetPort: 4010

@@ -4,7 +4,7 @@ const axios = require("axios");
 require('dotenv').config();
 
 // Use variável de ambiente para o endereço do core
-const SERVER_URL = process.env.CORE_WS_URL; // DEV padrão
+const SERVER_URL = process.env.CORE_WS_URL;
 const RETRY_INTERVAL = 30000;
 const SEND_INTERVAL = 10000;
 
@@ -12,7 +12,7 @@ let ws;
 
 async function getRoomCount() {
   try {
-    const res = await axios.get("http://session-service:PORT/sessions/active-count");
+    const res = await axios.get("http://session-service:4010/sessions/active-count");
     return res.data.activeSessions || 0;
   } catch {
     return 0;
@@ -21,7 +21,7 @@ async function getRoomCount() {
 
 async function getUserCount() {
   try {
-    const res = await axios.get("http://session-service:PORT/sessions/connected-users");
+    const res = await axios.get("http://session-service:4010/sessions/connected-users");
     return res.data.count || 0;
   } catch {
     return 0;

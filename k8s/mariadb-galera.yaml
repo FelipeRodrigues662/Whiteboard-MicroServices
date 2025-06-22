@@ -17,21 +17,101 @@ spec:
       - name: mariadb
         image: bitnami/mariadb-galera:latest
         env:
+        # Configurações básicas
         - name: MARIADB_ROOT_PASSWORD
           value: admin
         - name: MARIADB_GALERA_CLUSTER_NAME
           value: whiteboard-cluster
+        
+        # Configurações de replicação
         - name: MARIADB_GALERA_MARIABACKUP_PASSWORD
           value: backup
         - name: MARIADB_REPLICATION_USER
           value: repl
         - name: MARIADB_REPLICATION_PASSWORD
           value: replpass
+        - name: MARIADB_GALERA_WSREP_SST_METHOD
+          value: mariabackup
+        - name: MARIADB_GALERA_WSREP_SST_AUTH
+          value: root:admin
+        
+        # Algoritmo de eleição de líderes - Configurações avançadas
+        - name: MARIADB_GALERA_WSREP_PROVIDER_OPTIONS
+          value: "gcache.size=1G; gcache.page_size=1G; gcache.recover=yes"
+        - name: MARIADB_GALERA_WSREP_SYNC_WAIT
+          value: "1"
+        - name: MARIADB_GALERA_WSREP_CAUSAL_READS
+          value: "ON"
+        
+        # Configurações de quorum e eleição
+        - name: MARIADB_GALERA_WSREP_PROVIDER_OPTIONS
+          value: "gcache.size=1G; gcache.page_size=1G; gcache.recover=yes; pc.ignore_quorum=false; pc.ignore_sb=false"
+        
+        # Configurações de timeout e retry
+        - name: MARIADB_GALERA_WSREP_RETRY_AUTOCONNECT
+          value: "1"
+        - name: MARIADB_GALERA_WSREP_AUTO_INCREMENT_CONTROL
+          value: "ON"
+        
+        # Configurações de performance
+        - name: MARIADB_GALERA_WSREP_MAX_WS_SIZE
+          value: "2147483647"
+        - name: MARIADB_GALERA_WSREP_MAX_WS_ROWS
+          value: "131072"
+        
+        # Configurações de cluster
+        - name: MARIADB_GALERA_WSREP_CLUSTER_ADDRESS
+          value: "gcomm://mariadb-galera-0.mariadb-galera,mariadb-galera-1.mariadb-galera,mariadb-galera-2.mariadb-galera"
+        
         ports:
         - containerPort: 3306
+          name: mysql
         - containerPort: 4444
+          name: sst
         - containerPort: 4567
+          name: replication
         - containerPort: 4568
+          name: ist
+        
+        # Health checks melhorados
+        livenessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+            - -u
+            - root
+            - -padmin
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+            - -u
+            - root
+            - -padmin
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 5
+        
+        # Configurações de recursos
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        
         volumeMounts:
         - name: data
           mountPath: /bitnami/mariadb

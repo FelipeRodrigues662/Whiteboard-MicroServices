@@ -23,6 +23,16 @@ services:
     image: mariadb:latest
     environment:
       - MARIADB_ROOT_PASSWORD=admin
+      # Configurações para aumentar limites de tamanho
+      - MARIADB_MAX_ALLOWED_PACKET=64M
+      - MARIADB_INNODB_LOG_FILE_SIZE=256M
+      - MARIADB_INNODB_BUFFER_POOL_SIZE=512M
+    command: >
+      --max-allowed-packet=64M
+      --innodb-log-file-size=256M
+      --innodb-buffer-pool-size=512M
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
     volumes:
       - vol1:/var/lib/mysql
     networks:

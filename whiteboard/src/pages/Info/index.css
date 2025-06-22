@@ -1,0 +1,232 @@
+.welcome-title {
+  color: #fff !important;
+  font-weight: 600 !important;
+  margin-bottom: 8px !important;
+  font-size: 28px !important;
+}
+
+.gradient-overlay {
+  position: fixed;
+  top: -50%;
+  right: -50%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(
+    circle at 75% 25%,
+    rgba(100, 0, 200, 0.3) 0%,
+    rgba(0, 10, 30, 0) 70%
+  );
+  filter: blur(80px);
+  z-index: 0;
+}
+
+/* Container principal */
+.info-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 0;
+}
+
+/* Seção de voltar */
+.back-section {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 20px;
+}
+
+.back-button {
+  color: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 8px !important;
+  height: 36px !important;
+  padding: 0 16px !important;
+  font-weight: 500 !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(10px) !important;
+  transition: all 0.3s ease !important;
+}
+
+.back-button:hover {
+  color: #fff !important;
+  border-color: rgba(102, 126, 234, 0.5) !important;
+  background: rgba(102, 126, 234, 0.1) !important;
+  transform: translateX(-2px) !important;
+}
+
+.back-button .anticon {
+  margin-right: 6px !important;
+}
+
+/* Header da página */
+.info-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.info-subtitle {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-size: 16px !important;
+  margin-top: 8px !important;
+}
+
+/* Seção de refresh */
+.refresh-section {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 30px;
+}
+
+.refresh-button {
+  background: linear-gradient(135deg, #8a50c0 0%, #764ba2 100%) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  height: 40px !important;
+  padding: 0 24px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 4px 12px #764ba2 !important;
+  transition: all 0.3s ease !important;
+}
+
+.refresh-button:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px #764ba2 !important;
+}
+
+/* Mensagem de erro */
+.error-message {
+  text-align: center;
+  margin: 20px 0;
+  padding: 16px;
+  background: rgba(255, 77, 79, 0.1);
+  border: 1px solid rgba(255, 77, 79, 0.3);
+  border-radius: 8px;
+}
+
+/* Container de loading */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 16px;
+}
+
+.loading-text {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-size: 16px !important;
+}
+
+/* Grid de servidores */
+.servers-grid {
+  margin-top: 20px;
+}
+
+/* Cards dos servidores */
+.server-card {
+  background: rgba(20, 20, 20, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 16px !important;
+  backdrop-filter: blur(10px) !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.122) !important;
+  transition: all 0.3s ease !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+.server-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2) !important;
+  border-color: #764ba2 !important;
+}
+
+.server-card .ant-card-body {
+  padding: 20px !important;
+}
+
+/* Header do card */
+.server-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+.server-name {
+  color: #fff !important;
+  font-weight: 600 !important;
+  margin: 0 !important;
+  font-size: 18px !important;
+  line-height: 1.3 !important;
+  flex: 1;
+}
+
+.status-tag {
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  font-size: 12px !important;
+  padding: 4px 8px !important;
+  min-width: 60px !important;
+  text-align: center !important;
+}
+
+/* Informações do servidor */
+.server-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-icon {
+  color: #764ba2 !important;
+  font-size: 16px !important;
+}
+
+.info-text {
+  color: rgba(255, 255, 255, 0.8) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+
+/* ID do servidor */
+.server-id {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 12px;
+  margin-top: auto;
+}
+
+.server-id-text {
+  color: rgba(255, 255, 255, 0.5) !important;
+  font-size: 12px !important;
+  font-family: 'Courier New', monospace !important;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .info-container {
+    padding: 10px;
+  }
+  
+  .back-section {
+    margin-bottom: 15px;
+  }
+  
+  .server-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .status-tag {
+    align-self: flex-start;
+  }
+}
