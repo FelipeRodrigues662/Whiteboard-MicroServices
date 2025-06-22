@@ -60,7 +60,7 @@ const Whiteboard = () => {
     const canvasRef = useRef(null);
     const isDrawing = useRef(false);
     const lastPosition = useRef({ x: 0, y: 0 });
-    const [boardName, setBoardName] = useState(localStorage.getItem('whiteboardName') || 'Meu Board');
+    const [boardName, setBoardName] = useState('Meu Board');
     const [isEditingName, setIsEditingName] = useState(false);
     const token = localStorage.getItem('token');
     const urlCoordinator = import.meta.env.VITE_URL_SESSION;
@@ -160,7 +160,6 @@ const Whiteboard = () => {
             
             if (stateData.boardName) {
                 setBoardName(stateData.boardName);
-                localStorage.setItem('whiteboardName', stateData.boardName);
             }
 
             if (stateData.objects && Array.isArray(stateData.objects)) {
@@ -285,7 +284,6 @@ const Whiteboard = () => {
                 // Atualiza o nome do board se existir
                 if (data.state.boardName) {
                     setBoardName(data.state.boardName);
-                    localStorage.setItem('whiteboardName', data.state.boardName);
                 }
 
                 // Carrega os objetos no canvas
@@ -1101,7 +1099,6 @@ const Whiteboard = () => {
             }
 
             // Atualiza no localStorage
-            localStorage.setItem('whiteboardName', boardName);
             localStorage.setItem('whiteboardLastModified', new Date().toISOString());
             
             setIsEditingName(false);
