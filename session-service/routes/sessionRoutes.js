@@ -11,6 +11,8 @@ const {
   getSessionUsers,
   saveSessionState,
   getSessionState,
+  deleteSession,
+  updateSessionName,
 } = require("../controllers/sessionController");
 const authenticateToken = require("../middleware/auth.js");
 
@@ -378,5 +380,98 @@ router.post("/session/:sessionId/state", authenticateToken, saveSessionState);
  *         description: Erro interno do servidor
  */
 router.get("/session/:sessionId/state", authenticateToken, getSessionState);
+
+/**
+ * @swagger
+ * /session/{sessionId}:
+ *   delete:
+ *     summary: Deleta uma sessão
+ *     description: Remove a sessão do banco de dados e do Redis
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão a ser deletada
+ *     responses:
+ *       200:
+ *         description: Sessão deletada com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Sessão deletada com sucesso"
+ *                 sessionId:
+ *                   type: string
+ *                 deletedEntries:
+ *                   type: number
+ *                   description: Quantidade de entradas deletadas
+ *       404:
+ *         description: Sessão não encontrada ou usuário não tem permissão
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.delete("/session/:sessionId", authenticateToken, deleteSession);
+
+/**
+ * @swagger
+ * /session/{sessionId}/name:
+ *   put:
+ *     summary: Atualiza o nome do board da sessão
+ *     description: Atualiza o campo boardName de todas as entradas da sessão
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - boardName
+ *             properties:
+ *               boardName:
+ *                 type: string
+ *                 description: Novo nome do board
+ *                 example: "Meu Projeto"
+ *     responses:
+ *       200:
+ *         description: Nome do board atualizado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Nome do board atualizado com sucesso"
+ *                 sessionId:
+ *                   type: string
+ *                 boardName:
+ *                   type: string
+ *                   description: Nome atualizado do board
+ *                 updatedEntries:
+ *                   type: number
+ *                   description: Quantidade de entradas atualizadas
+ *                 updatedAt:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         description: Nome do board inválido
+ *       404:
+ *         description: Sessão não encontrada ou usuário não tem permissão
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.put("/session/:sessionId/name", authenticateToken, updateSessionName);
 
 module.exports = router;

@@ -22,6 +22,11 @@ const Session = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
     },
+    boardName: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: "Meu Board",
+    },
     data: {
       type: DataTypes.JSON,
     },
