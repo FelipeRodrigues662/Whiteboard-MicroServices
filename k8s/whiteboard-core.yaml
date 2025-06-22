@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whiteboard-core
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: whiteboard-core
+  template:
+    metadata:
+      labels:
+        app: whiteboard-core
+    spec:
+      containers:
+      - name: whiteboard-core
+        image: feliperodrigues662/whiteboard-core:latest
+        ports:
+        - containerPort: 4040
+        env:
+        - name: PORT
+          value: "4040"
+        - name: MONGODB_URI
+          value: mongodb+srv://admin:PQIKWqeWAxMSrtem@clusterwhiteboard.dbqvhl5.mongodb.net/?retryWrites=true&w=majority&appName=ClusterWhiteboard&tls=true&ssl=true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: whiteboard-core
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 4040
+    targetPort: 4040
+  selector:
+    app: whiteboard-core 

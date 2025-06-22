@@ -1,110 +1,121 @@
 import React, { useState, useEffect } from 'react';
-import { Card, List, Typography, Button, Space, Modal, Input, message } from 'antd';
-import { EditOutlined, DeleteOutlined, FileOutlined, FileImageOutlined } from '@ant-design/icons';
+import { Card, List, Typography, Button, Space, Input, message, Avatar, Row, Col } from 'antd';
+import { EditOutlined, DeleteOutlined, FileOutlined, FileImageOutlined, ShareAltOutlined, UserOutlined, CrownOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import './index.css';
 
 const { Text, Title } = Typography;
 const { Meta } = Card;
 
 const Recents = () => {
-    const [boards, setBoards] = useState([]);
+    const [sessions, setSessions] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [editingBoard, setEditingBoard] = useState(null);
-    const [newName, setNewName] = useState('');
     const [messageApi, contextHolder] = message.useMessage();
+    const navigate = useNavigate();
 
-    // Carrega os boards salvos do localStorage
+    const urlEndpoints = import.meta.env.VITE_URL_ENDPOINTS;
+    const token = localStorage.getItem('token');
+
+    // Carrega as sessões do usuário da API
     useEffect(() => {
-        const loadBoards = () => {
+        const loadSessions = async () => {
+            if (!token) {
+                setLoading(false);
+                return;
+            }
+
             try {
-                const savedBoards = [];
+                const response = await axios.get(`${urlEndpoints}/user/sessions`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
 
-                // Verifica se existe dados do whiteboard
-                const whiteboardData = localStorage.getItem('whiteboardData');
-                if (whiteboardData) {
-                    const boardName = localStorage.getItem('whiteboardName') || 'Whiteboard Sem Nome';
-
-                    savedBoards.push({
-                        id: 'current',
-                        name: boardName,
-                        data: whiteboardData,
-                        lastModified: localStorage.getItem('whiteboardLastModified') || new Date().toISOString()
-                    });
-                }
-
-                // Adiciona mais alguns exemplos (remover quando tiver dados reais)
-                for (let i = 1; i <= 4; i++) {
-                    savedBoards.push({
-                        id: `example-${i}`,
-                        name: `Projeto ${i}`,
-                        data: null,
-                        lastModified: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString()
-                    });
-                }
-
-                setBoards(savedBoards);
+                setSessions(response.data.sessions || []);
             } catch (error) {
-                console.error('Erro ao carregar boards:', error);
-                messageApi.error('Erro ao carregar boards salvos');
+                console.error('Erro ao carregar sessões:', error);
+                messageApi.error('Erro ao carregar sessões recentes');
             } finally {
                 setLoading(false);
             }
         };
 
-        loadBoards();
-    }, [messageApi]);
+        loadSessions();
+    }, [messageApi, token, urlEndpoints]);
 
-    const handleEdit = (board) => {
-        setEditingBoard(board);
-        setNewName(board.name);
-    };
-
-    const handleSaveEdit = () => {
-        if (!editingBoard || !newName.trim()) return;
-
+    const handleReconnect = async (session) => {
         try {
-            // Atualiza no localStorage se for o board atual
-            if (editingBoard.id === 'current') {
-                localStorage.setItem('whiteboardName', newName);
-                localStorage.setItem('whiteboardLastModified', new Date().toISOString());
-            }
+            // Adiciona o usuário de volta à sessão
+            await axios.post(`${urlEndpoints}/session/add-user`, {
+                sessionId: session.sessionId
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
 
-            // Atualiza na lista
-            setBoards(boards.map(b =>
-                b.id === editingBoard.id ? { ...b, name: newName, lastModified: new Date().toISOString() } : b
-            ));
-
-            messageApi.success('Nome atualizado com sucesso!');
-            setEditingBoard(null);
+            messageApi.success('Conectado à sessão com sucesso!');
+            
+            // Navega para o whiteboard com o sessionId
+            navigate(`/whiteboard/${session.sessionId}`);
         } catch (error) {
-            console.error('Erro ao salvar edição:', error);
-            messageApi.error('Erro ao atualizar nome');
+            console.error('Erro ao reconectar à sessão:', error);
+            if (error.response?.data?.status === 'already_connected') {
+                messageApi.info('Você já está conectado a esta sessão!');
+                navigate(`/whiteboard/${session.sessionId}`);
+            } else {
+                messageApi.error('Erro ao reconectar à sessão');
+            }
         }
     };
 
-    const handleDelete = (boardId) => {
-        Modal.confirm({
-            title: 'Excluir Board',
-            content: 'Tem certeza que deseja excluir este board? Esta ação não pode ser desfeita.',
-            okText: 'Excluir',
-            okType: 'danger',
-            cancelText: 'Cancelar',
-            onOk: () => {
-                try {
-                    if (boardId === 'current') {
-                        localStorage.removeItem('whiteboardData');
-                        localStorage.removeItem('whiteboardName');
-                        localStorage.removeItem('whiteboardLastModified');
-                    }
-
-                    setBoards(boards.filter(b => b.id !== boardId));
-                    messageApi.success('Board excluído com sucesso!');
-                } catch (error) {
-                    console.error('Erro ao excluir board:', error);
-                    messageApi.error('Erro ao excluir board');
+    const handleDelete = async (session, event) => {
+        // Previne que o clique se propague para o card
+        event.stopPropagation();
+        
+        try {
+            // Chama a API para deletar a sessão
+            await axios.delete(`${urlEndpoints}/session/${session.sessionId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
                 }
+            });
+
+            // Remove a sessão da lista local
+            setSessions(sessions.filter(s => s.sessionId !== session.sessionId));
+            messageApi.success('Sessão excluída com sucesso!');
+        } catch (error) {
+            console.error('Erro ao excluir sessão:', error);
+            if (error.response?.status === 404) {
+                messageApi.error('Sessão não encontrada');
+            } else {
+                messageApi.error('Erro ao excluir sessão');
             }
-        });
+        }
+    };
+
+    const handleShare = (session, event) => {
+        // Previne que o clique se propague para o card
+        event.stopPropagation();
+
+        // Obtém a URL atual
+        const url = `${window.location.origin}/whiteboard/${session.sessionId}`;
+        
+        // Copia a URL para a área de transferência
+        navigator.clipboard.writeText(url)
+            .then(() => {
+                messageApi.open({
+                    type: 'success',
+                    content: 'Link copiado com sucesso, compartilhe com seus amigos!',
+                });
+            })
+            .catch(() => {
+                messageApi.open({
+                    type: 'error',
+                    content: 'Erro ao copiar o link',
+                });
+            });
     };
 
     const formatDate = (dateString) => {
@@ -118,81 +129,110 @@ const Recents = () => {
         });
     };
 
+    const getSessionTitle = (session) => {
+        // Usa o boardName do banco se disponível
+        if (session.boardName !== 'Meu Board') {
+            return session.boardName;
+        }
+        return session.boardName;
+    };
+
+    const getSessionDescription = (session) => {
+        if (session.leader && session.leader.id === session.user.id) {
+            return `Você é o líder desta sessão`;
+        } else if (session.leader) {
+            return `Líder: ${session.leader.name}`;
+        } else {
+            return 'Sessão colaborativa';
+        }
+    };
+
+    const getSessionIcon = (session) => {
+        if (session.leader && session.leader.id === session.user.id) {
+            return <CrownOutlined style={{ color: '#ffd700', fontSize: '20px', alignItems: 'flex-start', marginBottom: '10px' }} />;
+        } else {
+            return <UserOutlined style={{ color: '#1890ff', fontSize: '20px', alignItems: 'flex-start', marginBottom: '10px' }} />;
+        }
+    };
+
     return (
         <div className="recents-container">
             {contextHolder}
-            <Title level={3} style={{ color: '#fff' }} className="recents-title gradient-text-2">Seus Boards Recentes</Title>
+            <Title level={3} style={{ color: '#fff' }} className="recents-title gradient-text-2">Suas Sessões Recentes</Title>
 
             <div className="boards-grid">
-                <List
-                    loading={loading}
-                    grid={{
-                        gutter: 24,
-                        xs: 1,
-                        sm: 1,
-                        md: 2,
-                        lg: 3,
-                        xl: 4,
-                        xxl: 4
-                    }}
-                    dataSource={boards}
-                    renderItem={(board) => (
-                        <List.Item>
-                            <Card
-                                hoverable
-                                className="board-card"
-                                cover={
-                                    <div className="board-thumbnail">
-                                        {/* <FileImageOutlined className="thumbnail-icon" /> */}
-                                    </div>
-                                }
-                                actions={[
-                                    <Button
-                                        type="text"
-                                        icon={<EditOutlined />}
-                                        onClick={() => handleEdit(board)}
-                                        className="card-action-button"
-                                    />,
-                                    <Button
-                                        type="text"
-                                        icon={<DeleteOutlined />}
-                                        onClick={() => handleDelete(board.id)}
-                                        className="card-action-button"
-                                        danger
-                                    />
-                                ]}
-                            >
-                                <Meta
-                                    title={<Text ellipsis className="card-title">{board.name}</Text>}
-                                    description={
-                                        <Text type="secondary" className="card-description">
-                                            Editado: {formatDate(board.lastModified)}
-                                        </Text>
+                {loading ? (
+                    <div className="loading-container">
+                        <div className="loading-spinner"></div>
+                        <span>Carregando sessões...</span>
+                    </div>
+                ) : (
+                    <Row gutter={[16, 16]} className="sessions-grid">
+                        {sessions.map((session) => (
+                            <Col xs={24} sm={12} lg={8} xl={6} key={session.sessionId}>
+                                <Card
+                                    hoverable
+                                    className="board-card"
+                                    cover={
+                                        <div className="board-thumbnail">
+                                        </div>
                                     }
-                                />
-                            </Card>
-                        </List.Item>
-                    )}
-                />
+                                    onClick={() => handleReconnect(session)}
+                                    actions={[
+                                        <>
+                                        <Button
+                                            type="text"
+                                            icon={<DeleteOutlined />}
+                                            onClick={(e) => handleDelete(session, e)}
+                                            className="card-action-button"
+                                            danger
+                                            title="Excluir sessão"
+                                        />
+                                        <Button
+                                        type="text"
+                                        icon={<ShareAltOutlined />}
+                                        onClick={(e) => handleShare(session, e)}
+                                        className="card-action-button-share"
+                                        danger
+                                        title="Compartilhar sessão"
+                                    />
+                                    </>
+                                    ]}
+                                >
+                                    <Meta
+                                        title={
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <Text ellipsis className="card-title" style={{ flex: 1 }}>
+                                                    {getSessionTitle(session)}
+                                                </Text>
+                                                {getSessionIcon(session)}
+                                            </div>
+                                        }
+                                        description={
+                                            <div>
+                                                <Text type="secondary" className="card-description">
+                                                    {getSessionDescription(session)}
+                                                </Text>
+                                                <br />
+                                                <Text type="secondary" className="card-description">
+                                                    Atualizada: {formatDate(session.updatedAt)}
+                                                </Text>
+                                            </div>
+                                        }
+                                    />
+                                </Card>
+                            </Col>
+                        ))}
+                    </Row>
+                )}
             </div>
 
-            {/* Modal de edição */}
-            <Modal
-                className='modal_main'
-                title="Editar Nome do Board"
-                open={!!editingBoard}
-                onOk={handleSaveEdit}
-                onCancel={() => setEditingBoard(null)}
-                okText="Salvar"
-                cancelText="Cancelar"
-            >
-                <Input
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="Digite o novo nome"
-                    onPressEnter={handleSaveEdit}
-                />
-            </Modal>
+            {sessions.length === 0 && !loading && (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#fff' }}>
+                    <p>Nenhuma sessão encontrada</p>
+                    <p>Participe de uma sessão para vê-la aqui</p>
+                </div>
+            )}
         </div>
     );
 };

@@ -1,7 +1,7 @@
 const WebSocket = require("ws");
 const { verifyJWT } = require("../utils/jwtUtils");
 const axios = require("axios");
-const API_BASE_URL = "http://session-service:4010"; // Se estiver usando Docker
+const API_BASE_URL = "http://session-service:4010"; 
 
 const clients = new Map();
 

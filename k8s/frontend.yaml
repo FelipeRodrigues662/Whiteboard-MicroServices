@@ -2,8 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: whiteboard-frontend
-  labels:
-    app: whiteboard-frontend
 spec:
   replicas: 1
   selector:
@@ -16,14 +14,26 @@ spec:
     spec:
       containers:
       - name: whiteboard-frontend
-        image: feliperodrigues662/frontend:latest
+        image: feliperodrigues662/whiteboard:latest
         ports:
         - containerPort: 80
         env:
-        - name: REACT_APP_API_URL
-          value: "http://coordinator:3000"  # Substitua pela URL do seu serviço coordinator
-        - name: REACT_APP_SESSION_URL
-          value: "http://session-service:4000"  # Substitua pela URL do seu session-service
+        - name: CORE_WS_URL
+          value: ws://whiteboard-core:4040
+        - name: VITE_URL_AUTH
+          value: http://authentication:4020
+        - name: VITE_URL_ENDPOINTS
+          value: http://session-service:4010
+        - name: VITE_URL_SESSION
+          value: http://coordinator:4000
+        - name: REDIS_HOST
+          value: redis   
+        - name: RABBITMQ_HOST
+          value: rabbitmq
+        - name: RABBITMQ_USER
+          value: user
+        - name: RABBITMQ_PASSWORD
+          value: pass
 ---
 apiVersion: v1
 kind: Service
@@ -31,9 +41,8 @@ metadata:
   name: whiteboard-frontend
 spec:
   type: LoadBalancer
-  selector:
-    app: whiteboard-frontend
   ports:
   - port: 80
     targetPort: 80
-
+  selector:
+    app: whiteboard-frontend 

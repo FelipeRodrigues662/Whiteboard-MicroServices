@@ -195,14 +195,138 @@
     height: 100%;
     overflow-y: auto;
   }
+
+  /* Header do sidebar */
+  .sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
   
   .sidebar-title {
     color: #9c62ee !important;
-    margin-bottom: 20px !important;
+    margin: 0 !important;
+    font-size: 18px !important;
+    font-weight: 600 !important;
   }
-  
+
+  .refresh-users-button {
+    color: rgba(255, 255, 255, 0.7) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-radius: 6px !important;
+    transition: all 0.3s ease !important;
+  }
+
+  .refresh-users-button:hover {
+    color: #9c62ee !important;
+    border-color: rgba(156, 98, 238, 0.3) !important;
+    background: rgba(156, 98, 238, 0.1) !important;
+    transform: scale(1.05) !important;
+  }
+
+  /* Loading de usuários */
+  .loading-users {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    gap: 12px;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid rgba(156, 98, 238, 0.2);
+    border-top: 2px solid #9c62ee;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* Lista de usuários */
+  .user-list-item {
+    padding: 8px 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    transition: all 0.3s ease !important;
+  }
+
+  .user-list-item:hover {
+    background: rgba(156, 98, 238, 0.05) !important;
+    border-radius: 8px !important;
+    padding: 8px !important;
+    margin: 0 -8px !important;
+  }
+
+  .user-list-item:last-child {
+    border-bottom: none !important;
+  }
+
+  /* Avatares */
+  .user-avatar {
+    background: linear-gradient(135deg, #9c62ee, #5612b5) !important;
+    color: #fff !important;
+    font-weight: 600 !important;
+  }
+
+  .leader-avatar {
+    background: linear-gradient(135deg, #ffd700, #ffb347) !important;
+    color: #000 !important;
+    font-weight: 600 !important;
+    border: 2px solid #ffd700 !important;
+  }
+
+  /* Nome do usuário */
   .user-name {
     color: #fff !important;
+    font-weight: 500 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  /* Badge de líder */
+  .leader-badge {
+    background: linear-gradient(135deg, #ffd700, #ffb347) !important;
+    color: #000 !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    padding: 2px 6px !important;
+    border-radius: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+  }
+
+  /* Email do usuário */
+  .user-email {
+    color: rgba(255, 255, 255, 0.6) !important;
+    font-size: 12px !important;
+    font-style: italic !important;
+  }
+
+  /* Estado vazio */
+  .empty-users {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    gap: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    text-align: center;
+  }
+
+  .empty-users span {
+    font-size: 14px;
   }
   
   .user-status {

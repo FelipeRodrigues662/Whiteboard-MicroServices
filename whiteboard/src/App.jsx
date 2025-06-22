@@ -4,6 +4,7 @@ import Welcome from './pages/Welcome';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Room from './pages/Room';
+import Info from './pages/Info';
 import Whiteboard from './pages/Whiteboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
@@ -41,6 +42,14 @@ const App = () => {
           element={
             <ProtectedRoute>
               <Room />
+            </ProtectedRoute>
+          } 
+        />
+         <Route 
+          path="/info" 
+          element={
+            <ProtectedRoute>
+              <Info />
             </ProtectedRoute>
           } 
         />
